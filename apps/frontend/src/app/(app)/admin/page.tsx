@@ -1,0 +1,8 @@
+'use client';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import type { User, Group, Course } from '@/lib/types';
+import { Card, CardContent } from '@/components/ui/card';
+import { Users, Layers, BookOpen, UserPlus } from 'lucide-react';
+import Link from 'next/link';
+export default function AdminPage(){const{data:users}=useQuery<User[]>({queryKey:['a-users'],queryFn:()=>api.get('/admin/users')});const{data:groups}=useQuery<Group[]>({queryKey:['a-groups'],queryFn:()=>api.get('/admin/groups')});const{data:courses}=useQuery<Course[]>({queryKey:['courses'],queryFn:()=>api.get('/courses')});const stats=[{l:'Users',v:users?.length||0,icon:Users,href:'/admin/users',c:'text-blue-600 bg-blue-100'},{l:'Groups',v:groups?.length||0,icon:Layers,href:'/admin/groups',c:'text-emerald-600 bg-emerald-100'},{l:'Courses',v:courses?.length||0,icon:BookOpen,href:'/admin/courses',c:'text-purple-600 bg-purple-100'},{l:'Enrollments',v:'-',icon:UserPlus,href:'/admin/enrollments',c:'text-amber-600 bg-amber-100'}];return(<div className="space-y-6"><h1 className="text-2xl font-bold">Administration</h1><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">{stats.map(s=>(<Link key={s.l} href={s.href}><Card className="hover:shadow-md transition-shadow cursor-pointer"><CardContent className="pt-6 flex items-center gap-4"><div className={`h-12 w-12 rounded-xl flex items-center justify-center ${s.c}`}><s.icon className="h-6 w-6"/></div><div><p className="text-2xl font-bold">{s.v}</p><p className="text-sm text-muted-foreground">{s.l}</p></div></CardContent></Card></Link>))}</div></div>);}

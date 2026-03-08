@@ -1,0 +1,15 @@
+'use client';
+import { useParams } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import type { Announcement, Course } from '@/lib/types';
+import { useMe } from '@/hooks/use-auth';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea, Skeleton } from '@/components/ui/form-elements';
+import { toast } from '@/hooks/use-toast';
+import { formatDateTime } from '@/lib/utils';
+import { useState } from 'react';
+import { Send, MessageSquare } from 'lucide-react';
+export default function OverviewPage(){const{id}=useParams<{id:string}>();const{data:user}=useMe();const qc=useQueryClient();const[show,setShow]=useState(false);const[title,setTitle]=useState('');const[body,setBody]=useState('');const{data:course}=useQuery<Course>({queryKey:['course',id],queryFn:()=>api.get(`/courses/${id}`)});const{data:anns,isLoading}=useQuery<Announcement[]>({queryKey:['c-anns',id],queryFn:()=>api.get(`/courses/${id}/announcements`)});const post=useMutation({mutationFn:(d:{title:string;body:string})=>api.post(`/courses/${id}/announcements`,d),onSuccess:()=>{qc.invalidateQueries({queryKey:['c-anns',id]});toast({title:'Posted'});setTitle('');setBody('');setShow(false);},onError:e=>toast({title:'Error',description:e.message,variant:'destructive'})});const canPost=user?.role==='ADMIN'||user?.role==='TEACHER';return(<div className="space-y-4 mt-4"><Card><CardContent className="pt-6"><p className="text-sm">{course?.description||'No description.'}</p><div className="mt-4 flex gap-4 text-sm text-muted-foreground"><span>Instructor: {course?.teacher?.fullName}</span><span>{course?._count?.enrollments} enrolled</span></div></CardContent></Card>{canPost&&(!show?<Button variant="outline" onClick={()=>setShow(true)} className="gap-2"><MessageSquare className="h-4 w-4"/>Post Announcement</Button>:<Card><CardContent className="pt-6 space-y-3"><Input placeholder="Title" value={title} onChange={e=>setTitle(e.target.value)}/><Textarea placeholder="Write..." value={body} onChange={e=>setBody(e.target.value)} rows={3}/><div className="flex gap-2 justify-end"><Button variant="outline" onClick={()=>setShow(false)}>Cancel</Button><Button onClick={()=>post.mutate({title,body})} disabled={!title||!body} className="gap-2"><Send className="h-4 w-4"/>Post</Button></div></CardContent></Card>)}<h2 className="text-lg font-semibold">Course Stream</h2>{isLoading?<div className="space-y-3">{[1,2].map(i=><Skeleton key={i} className="h-24 w-full"/>)}</div>:!anns?.length?<Card><CardContent className="py-8 text-center text-muted-foreground">No announcements yet</CardContent></Card>:<div className="space-y-3">{anns.map(a=>(<Card key={a.id}><CardContent className="pt-4"><h3 className="font-semibold">{a.title}</h3><p className="text-xs text-muted-foreground mt-0.5">{a.author?.fullName} &middot; {formatDateTime(a.createdAt)}</p><p className="text-sm mt-2 text-muted-foreground whitespace-pre-wrap">{a.body}</p></CardContent></Card>))}</div>}</div>);}

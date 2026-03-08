@@ -1,0 +1,6 @@
+'use client';
+import { useMe } from '@/hooks/use-auth';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Mail, Users } from 'lucide-react';
+export default function ProfilePage(){const{data:user}=useMe();return(<div className="space-y-6 max-w-2xl"><h1 className="text-2xl font-bold">Profile</h1><Card><CardContent className="pt-6"><div className="flex items-start gap-4"><div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">{user?.fullName?.charAt(0)}</div><div className="space-y-3 flex-1"><div><h2 className="text-xl font-bold">{user?.fullName}</h2><Badge className="mt-1">{user?.role}</Badge></div><div className="space-y-2 text-sm"><div className="flex items-center gap-2 text-muted-foreground"><Mail className="h-4 w-4"/>{user?.email}</div>{user?.group&&<div className="flex items-center gap-2 text-muted-foreground"><Users className="h-4 w-4"/>Group: {user.group.name}</div>}</div></div></div></CardContent></Card><Card><CardHeader><CardTitle className="text-base">Account Information</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">Profile editing and password change available in a future release.</p></CardContent></Card></div>);}

@@ -1,0 +1,8 @@
+{
+  "name": "uni-lms",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "build": "pnpm -r build"
+  }
+}
