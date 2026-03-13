@@ -53,6 +53,8 @@ model User {
   gradesGiven   Grade[]        @relation("GradedBy")
   notifications Notification[]
   taughtCourses Course[]       @relation("CourseTeacher")
+  activityLogs  ActivityLog[]
+  attendance    Attendance[]
 
   @@map("users")
 }
@@ -71,22 +73,54 @@ model Group {
 }
 
 model Course {
-  id            String         @id @default(uuid())
-  code          String         @unique
+  id            String           @id @default(uuid())
+  code          String           @unique
   title         String
-  description   String         @default("")
-  teacherId     String?        @map("teacher_id")
-  semester      String         @default("2025-Spring")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
-  teacher       User?          @relation("CourseTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+  description   String           @default("")
+  teacherId     String?          @map("teacher_id")
+  semester      String           @default("2025-Spring")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  teacher       User?            @relation("CourseTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
   enrollments   Enrollment[]
   announcements Announcement[]
   assignments   Assignment[]
   scheduleItems ScheduleItem[]
+  materials     CourseMaterial[]
+  attendance    Attendance[]
 
   @@index([teacherId])
   @@map("courses")
+}
+
+model CourseMaterial {
+  id        String   @id @default(uuid())
+  courseId  String   @map("course_id")
+  title     String
+  type      String
+  url       String?
+  content   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+  @@map("course_materials")
+}
+
+model Attendance {
+  id        String   @id @default(uuid())
+  courseId  String   @map("course_id")
+  studentId String   @map("student_id")
+  date      DateTime @db.Date
+  status    String
+  createdAt DateTime @default(now()) @map("created_at")
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, studentId, date])
+  @@index([courseId])
+  @@index([studentId])
+  @@map("attendance")
 }
 
 model Enrollment {
@@ -141,6 +175,7 @@ model Submission {
   studentId    String           @map("student_id")
   contentText  String?          @map("content_text")
   contentUrl   String?          @map("content_url")
+  fileUrl      String?          @map("file_url")
   submittedAt  DateTime?        @map("submitted_at")
   status       SubmissionStatus @default(DRAFT)
   createdAt    DateTime         @default(now()) @map("created_at")
@@ -199,4 +234,18 @@ model Notification {
 
   @@index([userId])
   @@map("notifications")
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("activity_logs")
 }

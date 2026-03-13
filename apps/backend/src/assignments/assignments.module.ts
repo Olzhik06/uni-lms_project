@@ -1,5 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AssignmentsService } from './assignments.service';
 import { AssignmentsController } from './assignments.controller';
-@Module({ controllers: [AssignmentsController], providers: [AssignmentsService] })
+import { ActivityLogModule } from '../activity-log/activity-log.module';
+import { MailModule } from '../mail/mail.module';
+
+@Module({
+  imports: [ActivityLogModule, MailModule],
+  controllers: [AssignmentsController],
+  providers: [AssignmentsService],
+})
 export class AssignmentsModule {}

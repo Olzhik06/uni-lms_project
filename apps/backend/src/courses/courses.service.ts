@@ -2,15 +2,29 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCourseDto, UpdateCourseDto } from './courses.dto';
 import { Role } from '@prisma/client';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 @Injectable()
 export class CoursesService {
-  constructor(private db: PrismaService) {}
+  constructor(
+    private db: PrismaService,
+    private activityLog: ActivityLogService,
+  ) {}
 
-  async findAll(user: { id: string; role: Role }) {
+  async findAll(user: { id: string; role: Role }, page = 1, limit = 20) {
     if (user.role === Role.ADMIN)
-      return this.db.course.findMany({ include: { teacher: { select: { id: true, fullName: true } }, _count: { select: { enrollments: true, assignments: true } } }, orderBy: { title: 'asc' } });
-    const enrs = await this.db.enrollment.findMany({ where: { userId: user.id }, include: { course: { include: { teacher: { select: { id: true, fullName: true } }, _count: { select: { enrollments: true, assignments: true } } } } } });
+      return this.db.course.findMany({
+        include: { teacher: { select: { id: true, fullName: true } }, _count: { select: { enrollments: true, assignments: true } } },
+        orderBy: { title: 'asc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+    const enrs = await this.db.enrollment.findMany({
+      where: { userId: user.id },
+      include: { course: { include: { teacher: { select: { id: true, fullName: true } }, _count: { select: { enrollments: true, assignments: true } } } } },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
     return enrs.map(e => ({ ...e.course, roleInCourse: e.roleInCourse }));
   }
 
@@ -28,8 +42,13 @@ export class CoursesService {
     return this.db.enrollment.findMany({ where: { courseId }, include: { user: { select: { id: true, email: true, fullName: true, role: true, group: { select: { name: true } } } } }, orderBy: { createdAt: 'asc' } });
   }
 
-  create(dto: CreateCourseDto) {
-    return this.db.course.create({ data: { code: dto.code, title: dto.title, description: dto.description ?? '', teacherId: dto.teacherId || null, semester: dto.semester ?? '2025-Spring' }, include: { teacher: { select: { id: true, fullName: true } } } });
+  async create(dto: CreateCourseDto, userId?: string) {
+    const course = await this.db.course.create({
+      data: { code: dto.code, title: dto.title, description: dto.description ?? '', teacherId: dto.teacherId || null, semester: dto.semester ?? '2025-Spring' },
+      include: { teacher: { select: { id: true, fullName: true } } },
+    });
+    if (userId) await this.activityLog.log(userId, 'CREATE', 'Course', course.id);
+    return course;
   }
 
   async update(id: string, dto: UpdateCourseDto) {

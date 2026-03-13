@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Get, Res, Req, UseGuards, HttpCode } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './auth.dto';
@@ -11,6 +11,9 @@ export class AuthController {
   constructor(private auth: AuthService) {}
 
   @Post('login') @HttpCode(200)
+  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiResponse({ status: 200, description: 'Returns JWT tokens and user info' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const r = await this.auth.login(dto);
     this.setCookies(res, r.accessToken, r.refreshToken);
@@ -18,6 +21,8 @@ export class AuthController {
   }
 
   @Post('register')
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiResponse({ status: 201, description: 'User created and tokens returned' })
   async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const r = await this.auth.register(dto);
     this.setCookies(res, r.accessToken, r.refreshToken);
