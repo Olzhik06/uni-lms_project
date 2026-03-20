@@ -14,11 +14,11 @@ export default function LoginPage() {
   const login = useLogin();
   const go = (e: React.FormEvent) => { e.preventDefault(); login.mutate({ email, password }, { onError: (err) => toast({ title: 'Login failed', description: err.message, variant: 'destructive' }) }); };
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 h-12 w-12 rounded-xl bg-primary flex items-center justify-center"><GraduationCap className="h-7 w-7 text-white" /></div>
-          <CardTitle className="text-2xl">Welcome to UniLMS</CardTitle>
+          <div className="mx-auto mb-3 h-11 w-11 rounded-lg bg-primary flex items-center justify-center"><GraduationCap className="h-6 w-6 text-white" /></div>
+          <CardTitle className="font-serif text-2xl font-semibold">Welcome to UniLMS</CardTitle>
           <CardDescription>Sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>

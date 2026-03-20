@@ -16,9 +16,16 @@ export class AttendanceController {
   constructor(private svc: AttendanceService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get course attendance' })
+  @ApiOperation({ summary: 'Get course attendance records' })
   findAll(@Param('id') id: string, @CurrentUser() u: any) {
     return this.svc.findByCourse(id, u);
+  }
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Get attendance stats for a course' })
+  stats(@Param('id') id: string, @CurrentUser() u: any) {
+    if (u.role === Role.STUDENT) return this.svc.getMyStats(id, u.id);
+    return this.svc.getCourseStudentStats(id);
   }
 
   @Post()

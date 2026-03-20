@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -32,7 +33,10 @@ async function bootstrap() {
     .addTag('Activity Log')
     .build();
   SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, cfg));
-  await app.listen(4000);
+  const server = await app.listen(4000);
+  // Increase timeouts for long-running AI requests (quiz generation can take 60s+)
+  server.headersTimeout = 300000; // 5 minutes
+  server.requestTimeout = 300000;
   console.log('Backend running on http://localhost:4000');
 }
 bootstrap();

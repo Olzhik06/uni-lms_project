@@ -30,6 +30,7 @@ services:
       JWT_REFRESH_SECRET: change-me-super-secret-refresh-key-at-least-32
       JWT_EXPIRATION: 15m
       JWT_REFRESH_EXPIRATION: 7d
+      LLM_API_KEY: ${LLM_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

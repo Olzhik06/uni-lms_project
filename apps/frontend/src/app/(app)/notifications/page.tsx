@@ -4,9 +4,111 @@ import { api } from '@/lib/api';
 import type { Notification } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Bell, CheckCheck } from 'lucide-react';
+import { formatDateTime } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '@/components/ui/form-elements';
-import { cn, formatDateTime } from '@/lib/utils';
-import { Bell, Check, CheckCheck, Award, MessageSquare, Clock } from 'lucide-react';
-import Link from 'next/link';
-const IC:Record<string,any>={ANNOUNCEMENT:MessageSquare,GRADE_PUBLISHED:Award,ASSIGNMENT_DUE:Clock,SYSTEM:Bell};
-export default function NotificationsPage(){const qc=useQueryClient();const{data:notifs,isLoading}=useQuery<Notification[]>({queryKey:['notifs'],queryFn:()=>api.get('/me/notifications')});const mr=useMutation({mutationFn:(id:string)=>api.post(`/me/notifications/${id}/read`),onSuccess:()=>{qc.invalidateQueries({queryKey:['notifs']});qc.invalidateQueries({queryKey:['nc']});}});const ma=useMutation({mutationFn:()=>api.post('/me/notifications/read-all'),onSuccess:()=>{qc.invalidateQueries({queryKey:['notifs']});qc.invalidateQueries({queryKey:['nc']});}});const uc=(notifs||[]).filter(n=>!n.isRead).length;return(<div className="space-y-4"><div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold">Notifications</h1><p className="text-muted-foreground">{uc} unread</p></div>{uc>0&&<Button variant="outline" size="sm" onClick={()=>ma.mutate()} className="gap-2"><CheckCheck className="h-4 w-4"/>Mark all read</Button>}</div>{isLoading?<div className="space-y-3">{[1,2,3].map(i=><Skeleton key={i} className="h-16 w-full"/>)}</div>:!notifs?.length?<Card><CardContent className="py-12 text-center text-muted-foreground"><Bell className="h-8 w-8 mx-auto mb-2 opacity-30"/>No notifications</CardContent></Card>:<div className="space-y-2">{notifs.map(n=>{const I=IC[n.type]||Bell;return(<Card key={n.id} className={cn(!n.isRead&&'border-primary/30 bg-primary/[0.02]')}><CardContent className="py-3 flex items-start gap-3"><div className={cn('mt-0.5 h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0',!n.isRead?'bg-primary/10':'bg-muted')}><I className={cn('h-4 w-4',!n.isRead?'text-primary':'text-muted-foreground')}/></div><div className="flex-1 min-w-0"><div className="flex items-start justify-between gap-2">{n.link?<Link href={n.link} className="hover:underline"><p className={cn('text-sm',!n.isRead&&'font-semibold')}>{n.title}</p></Link>:<p className={cn('text-sm',!n.isRead&&'font-semibold')}>{n.title}</p>}{!n.isRead&&<Button size="sm" variant="ghost" onClick={()=>mr.mutate(n.id)} className="h-7"><Check className="h-3 w-3"/></Button>}</div>{n.body&&<p className="text-xs text-muted-foreground mt-0.5">{n.body}</p>}<p className="text-[10px] text-muted-foreground mt-1">{formatDateTime(n.createdAt)}</p></div></CardContent></Card>);})}</div>}</div>);}
+import { useT } from '@/lib/i18n';
+
+export default function NotificationsPage() {
+  const t = useT();
+  const qc = useQueryClient();
+  const { data: notifications = [], isLoading } = useQuery<Notification[]>({
+    queryKey: ['notifications'],
+    queryFn: () => api.get('/me/notifications'),
+  });
+
+  const readAllMutation = useMutation({
+    mutationFn: () => api.post('/me/notifications/read-all', {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+
+  const readOneMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/me/notifications/${id}/read`, {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+
+  const unread = notifications.filter(n => !n.isRead).length;
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-serif text-3xl font-semibold">{t.notifications.title}</h1>
+          {unread > 0 && (
+            <p className="text-sm text-muted-foreground mt-1">{unread} {t.notifications.unread}</p>
+          )}
+        </div>
+        {unread > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => readAllMutation.mutate()}
+            disabled={readAllMutation.isPending}
+          >
+            <CheckCheck className="h-4 w-4" />
+            {t.notifications.markAll}
+          </Button>
+        )}
+      </div>
+
+      {isLoading && (
+        <div className="space-y-2">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
+        </div>
+      )}
+
+      {!isLoading && notifications.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+          className="text-center py-20 text-muted-foreground"
+        >
+          <Bell className="h-9 w-9 mx-auto mb-3 opacity-20" />
+          <p className="text-sm">{t.notifications.empty}</p>
+        </motion.div>
+      )}
+
+      <motion.div
+        className="space-y-1.5"
+        initial="hidden"
+        animate="visible"
+        variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
+      >
+        <AnimatePresence>
+          {notifications.map(n => (
+            <motion.div
+              key={n.id}
+              layout
+              variants={{
+                hidden: { opacity: 0, y: 8 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.25 } },
+              }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Card
+                className={n.isRead ? 'opacity-55 hover:-translate-y-0.5 hover:opacity-70' : 'border-primary/20 bg-accent/40 hover:-translate-y-0.5'}
+                onClick={() => !n.isRead && readOneMutation.mutate(n.id)}
+              >
+                <CardContent className="p-4 flex items-start gap-3 cursor-pointer">
+                  <div
+                    className="mt-1.5 h-2 w-2 rounded-full shrink-0"
+                    style={{ background: n.isRead ? 'transparent' : 'hsl(var(--primary))' }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{n.title}</p>
+                    {n.body && <p className="text-xs text-muted-foreground mt-0.5">{n.body}</p>}
+                    <p className="text-xs text-muted-foreground mt-1.5">{formatDateTime(n.createdAt)}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </motion.div>
+    </div>
+  );
+}

@@ -1,16 +1,20 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useMe } from '@/hooks/use-auth';
 import { api } from '@/lib/api';
 import type { SearchResults } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/form-elements';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, BookOpen, FileText, ClipboardList } from 'lucide-react';
+import { Search, BookOpen, FileText, ClipboardList, Bell, Users } from 'lucide-react';
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 export default function SearchPage() {
+  const { data: me } = useMe();
+  const t = useT();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
 
@@ -25,41 +29,36 @@ export default function SearchPage() {
     enabled: debouncedQuery.length >= 2,
   });
 
-  const total = (data?.courses.length || 0) + (data?.materials.length || 0) + (data?.assignments.length || 0);
+  const total = (data?.courses.length || 0) + (data?.materials.length || 0) +
+    (data?.assignments.length || 0) + (data?.announcements?.length || 0) + (data?.users?.length || 0);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Search</h1>
-        <p className="text-muted-foreground text-sm">Search across courses, materials and assignments</p>
+        <h1 className="font-serif text-3xl font-semibold">{t.search.title}</h1>
       </div>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          className="pl-10"
-          placeholder="Search courses, materials, assignments..."
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          autoFocus
-        />
+        <Input className="pl-10" placeholder={t.search.placeholder} value={query} onChange={e => setQuery(e.target.value)} autoFocus />
       </div>
 
       {debouncedQuery.length < 2 && (
-        <p className="text-sm text-muted-foreground text-center py-8">Type at least 2 characters to search</p>
+        <p className="text-sm text-muted-foreground text-center py-8">{t.search.hint}</p>
       )}
 
       {isLoading && debouncedQuery.length >= 2 && (
-        <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-14 bg-muted animate-pulse rounded-lg"/>)}</div>
+        <div className="space-y-3">{[1,2,3].map(i=><div key={i} className="h-14 bg-muted animate-pulse rounded-lg"/>)}</div>
       )}
 
       {data && !isLoading && (
         <>
-          <p className="text-sm text-muted-foreground">{total} result{total !== 1 ? 's' : ''} for &quot;{debouncedQuery}&quot;</p>
+          <p className="text-sm text-muted-foreground">{total} {total !== 1 ? t.search.results_pl : t.search.results} {t.search.for} &quot;{debouncedQuery}&quot;</p>
 
+          {/* Courses */}
           {data.courses.length > 0 && (
             <div className="space-y-2">
-              <h2 className="text-sm font-semibold flex items-center gap-2"><BookOpen className="h-4 w-4"/>Courses</h2>
+              <h2 className="text-sm font-semibold flex items-center gap-2"><BookOpen className="h-4 w-4"/>{t.search.coursesSection}</h2>
               {data.courses.map(c => (
                 <Link key={c.id} href={`/courses/${c.id}/overview`}>
                   <Card className="hover:shadow-sm transition-shadow">
@@ -76,9 +75,10 @@ export default function SearchPage() {
             </div>
           )}
 
+          {/* Materials */}
           {data.materials.length > 0 && (
             <div className="space-y-2">
-              <h2 className="text-sm font-semibold flex items-center gap-2"><FileText className="h-4 w-4"/>Materials</h2>
+              <h2 className="text-sm font-semibold flex items-center gap-2"><FileText className="h-4 w-4"/>{t.search.materialsSection}</h2>
               {data.materials.map(m => (
                 <Link key={m.id} href={`/courses/${m.courseId}/materials`}>
                   <Card className="hover:shadow-sm transition-shadow">
@@ -95,9 +95,10 @@ export default function SearchPage() {
             </div>
           )}
 
+          {/* Assignments */}
           {data.assignments.length > 0 && (
             <div className="space-y-2">
-              <h2 className="text-sm font-semibold flex items-center gap-2"><ClipboardList className="h-4 w-4"/>Assignments</h2>
+              <h2 className="text-sm font-semibold flex items-center gap-2"><ClipboardList className="h-4 w-4"/>{t.search.assignmentsSection}</h2>
               {data.assignments.map(a => (
                 <Link key={a.id} href={`/courses/${a.courseId}/assignments`}>
                   <Card className="hover:shadow-sm transition-shadow">
@@ -113,8 +114,54 @@ export default function SearchPage() {
             </div>
           )}
 
+          {/* Feature 6 — Announcements in search */}
+          {(data.announcements?.length || 0) > 0 && (
+            <div className="space-y-2">
+              <h2 className="text-sm font-semibold flex items-center gap-2"><Bell className="h-4 w-4"/>{t.search.announcementsSection}</h2>
+              {data.announcements!.map(a => (
+                <Link key={a.id} href={a.courseId ? `/courses/${a.courseId}/overview` : '/dashboard'}>
+                  <Card className="hover:shadow-sm transition-shadow">
+                    <CardContent className="p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{a.title}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-1">{a.body}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground shrink-0">{formatDate(a.createdAt)}</p>
+                      </div>
+                      {a.course && <Badge variant="secondary" className="mt-1 text-[10px]">{a.course.code}</Badge>}
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {/* Feature 6 — Users in search (admin only) */}
+          {(data.users?.length || 0) > 0 && (
+            <div className="space-y-2">
+              <h2 className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4"/>{t.search.usersSection}</h2>
+              {data.users!.map(u => (
+                <Link key={u.id} href={`/admin/users`}>
+                  <Card className="hover:shadow-sm transition-shadow">
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
+                        {u.fullName.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{u.fullName}</p>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">{u.role}</Badge>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+
           {total === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8">No results found for &quot;{debouncedQuery}&quot;</p>
+            <p className="text-sm text-muted-foreground text-center py-8">{t.common.noResults} &quot;{debouncedQuery}&quot;</p>
           )}
         </>
       )}

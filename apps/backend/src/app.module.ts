@@ -18,6 +18,7 @@ import { SearchModule } from './search/search.module';
 import { ActivityLogModule } from './activity-log/activity-log.module';
 import { AdminModule } from './admin/admin.module';
 import { MailModule } from './mail/mail.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -25,7 +26,7 @@ import { MailModule } from './mail/mail.module';
     PrismaModule, AuthModule, UsersModule, GroupsModule, CoursesModule,
     EnrollmentsModule, AnnouncementsModule, AssignmentsModule, GradesModule,
     ScheduleModule, NotificationsModule, MaterialsModule, AttendanceModule,
-    SearchModule, ActivityLogModule, AdminModule, MailModule,
+    SearchModule, ActivityLogModule, AdminModule, MailModule, AiModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

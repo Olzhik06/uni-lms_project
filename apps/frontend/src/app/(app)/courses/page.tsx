@@ -6,25 +6,33 @@ import type { Course, CourseProgress } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/form-elements';
-import { Users, FileText } from 'lucide-react';
+import { Users, FileText, BookOpen } from 'lucide-react';
 import Link from 'next/link';
-
-const colors = ['from-blue-500 to-blue-600', 'from-emerald-500 to-emerald-600', 'from-purple-500 to-purple-600', 'from-amber-500 to-amber-600', 'from-rose-500 to-rose-600'];
+import Image from 'next/image';
+import { motion } from 'framer-motion';
+import { stagger, item } from '@/lib/motion';
+import { useT } from '@/lib/i18n';
 
 function ProgressBar({ courseId }: { courseId: string }) {
+  const t = useT();
   const { data } = useQuery<CourseProgress>({
     queryKey: ['progress', courseId],
     queryFn: () => api.get(`/courses/${courseId}/progress`),
   });
   if (!data) return null;
   return (
-    <div className="mt-3">
-      <div className="flex justify-between text-xs text-muted-foreground mb-1">
-        <span>Progress</span>
-        <span>{data.completedAssignments}/{data.totalAssignments}</span>
+    <div className="mt-4">
+      <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+        <span>{t.courses.progress}</span>
+        <span>{data.completedAssignments} {t.common.of} {data.totalAssignments}</span>
       </div>
-      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-        <div className="h-full bg-primary transition-all" style={{ width: `${data.progress}%` }} />
+      <div className="h-1 bg-muted rounded-full overflow-hidden">
+        <motion.div
+          className="h-full bg-primary"
+          initial={{ width: 0 }}
+          animate={{ width: `${data.progress}%` }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
+        />
       </div>
     </div>
   );
@@ -32,43 +40,86 @@ function ProgressBar({ courseId }: { courseId: string }) {
 
 export default function CoursesPage() {
   const { data: user } = useMe();
-  const { data: courses, isLoading } = useQuery<Course[]>({ queryKey: ['courses'], queryFn: () => api.get('/courses') });
+  const t = useT();
+  const { data: courses, isLoading } = useQuery<Course[]>({
+    queryKey: ['courses'],
+    queryFn: () => api.get('/courses'),
+  });
   const isStudent = user?.role === 'STUDENT';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl">
       <div>
-        <h1 className="text-2xl font-bold">My Courses</h1>
-        <p className="text-muted-foreground">Enrolled courses this semester</p>
+        <h1 className="font-serif text-3xl font-semibold">{t.courses.title}</h1>
+        <p className="text-muted-foreground mt-1 text-sm">{t.courses.subtitle}</p>
       </div>
-      {isLoading
-        ? <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{[1,2,3].map(i => <Skeleton key={i} className="h-48 w-full rounded-xl"/>)}</div>
-        : !courses?.length
-          ? <Card><CardContent className="py-12 text-center text-muted-foreground">No courses found</CardContent></Card>
-          : <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {courses.map((c, i) => (
-                <Link key={c.id} href={`/courses/${c.id}/overview`}>
-                  <Card className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
-                    <div className={`h-24 bg-gradient-to-r ${colors[i % colors.length]} p-4 flex flex-col justify-end`}>
-                      <h3 className="text-white font-bold text-lg">{c.code}</h3>
-                      <p className="text-white/80 text-sm truncate">{c.title}</p>
+
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-44 w-full rounded-lg" />)}
+        </div>
+      ) : !courses?.length ? (
+        /* Empty state with image */
+        <div className="text-center py-20">
+          <div className="relative w-48 h-32 mx-auto mb-6 rounded-lg overflow-hidden opacity-40">
+            <Image
+              src="https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&q=80&auto=format&fit=crop"
+              alt=""
+              fill
+              className="object-cover"
+            />
+          </div>
+          <BookOpen className="h-8 w-8 mx-auto mb-3 text-muted-foreground/40" />
+          <p className="text-muted-foreground text-sm">{t.courses.notFound}</p>
+          <p className="text-muted-foreground/60 text-xs mt-1">{t.courses.notEnrolled}</p>
+        </div>
+      ) : (
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          animate="visible"
+          className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+        >
+          {courses.map(c => (
+            <motion.div key={c.id} variants={item}>
+              <Link href={`/courses/${c.id}/overview`}>
+                <Card className="overflow-hidden hover:-translate-y-1 hover:shadow-lift cursor-pointer group h-full">
+                  <div className="h-1.5 bg-primary" />
+                  <CardContent className="pt-5">
+                    <div className="mb-3">
+                      <p className="text-xs font-semibold tracking-widest text-primary uppercase">{c.code}</p>
+                      <h3 className="font-medium text-foreground mt-0.5 leading-snug group-hover:text-primary transition-colors">{c.title}</h3>
                     </div>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        {c.teacher && <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5"/>{c.teacher.fullName}</span>}
-                        {c._count && <span className="flex items-center gap-1"><FileText className="h-3.5 w-3.5"/>{c._count.assignments} assignments</span>}
-                      </div>
-                      <div className="mt-3 flex gap-2">
-                        <Badge variant="secondary">{c.semester}</Badge>
-                        {c.roleInCourse && <Badge variant={c.roleInCourse === 'TEACHER' ? 'default' : 'outline'}>{c.roleInCourse}</Badge>}
-                      </div>
-                      {isStudent && <ProgressBar courseId={c.id} />}
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-      }
+                    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                      {c.teacher && (
+                        <span className="flex items-center gap-1.5">
+                          <Users className="h-3 w-3" />
+                          {c.teacher.fullName}
+                        </span>
+                      )}
+                      {c._count && (
+                        <span className="flex items-center gap-1.5">
+                          <FileText className="h-3 w-3" />
+                          {c._count.assignments} {t.courses.assignments}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-3 flex gap-1.5 flex-wrap">
+                      <Badge variant="secondary">{c.semester}</Badge>
+                      {c.roleInCourse && (
+                        <Badge variant={c.roleInCourse === 'TEACHER' ? 'default' : 'outline'}>
+                          {c.roleInCourse}
+                        </Badge>
+                      )}
+                    </div>
+                    {isStudent && <ProgressBar courseId={c.id} />}
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
     </div>
   );
 }

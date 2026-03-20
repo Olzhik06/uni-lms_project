@@ -55,6 +55,7 @@ model User {
   taughtCourses Course[]       @relation("CourseTeacher")
   activityLogs  ActivityLog[]
   attendance    Attendance[]
+  aiRequestLogs AiRequestLog[]
 
   @@map("users")
 }
@@ -248,4 +249,18 @@ model ActivityLog {
   @@index([userId])
   @@index([createdAt])
   @@map("activity_logs")
+}
+
+model AiRequestLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  type      String
+  prompt    String   @db.Text
+  response  String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("ai_request_logs")
 }

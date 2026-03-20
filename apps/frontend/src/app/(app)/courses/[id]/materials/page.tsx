@@ -6,9 +6,10 @@ import { useMe } from '@/hooks/use-auth';
 import type { CourseMaterial } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input, Textarea, Select } from '@/components/ui/form-elements';
+import { Input } from '@/components/ui/input';
+import { Textarea, Select } from '@/components/ui/form-elements';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { FileText, Link as LinkIcon, AlignLeft, Trash2, Plus } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
@@ -24,7 +25,7 @@ export default function MaterialsPage() {
   const { id } = useParams<{ id: string }>();
   const { data: user } = useMe();
   const qc = useQueryClient();
-  const { toast } = useToast();
+
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', type: 'link', url: '', content: '' });
 
@@ -47,7 +48,7 @@ export default function MaterialsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (matId: string) => api.del(`/materials/${matId}`),
+    mutationFn: (matId: string) => api.delete(`/materials/${matId}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['materials', id] });
       toast({ title: 'Material deleted' });

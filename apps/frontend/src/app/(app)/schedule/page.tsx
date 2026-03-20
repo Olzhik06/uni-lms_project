@@ -53,7 +53,7 @@ export default function SchedulePage() {
   const isToday = (i: number) => dayDate(i).toDateString() === new Date().toDateString();
 
   // Build course color map
-  const courseIds = useMemo(() => [...new Set((items || []).map(s => s.courseId))], [items]);
+  const courseIds = useMemo(() => Array.from(new Set((items || []).map(s => s.courseId))), [items]);
   const courseColorMap = useMemo(() => Object.fromEntries(courseIds.map((id, i) => [id, COURSE_COLORS[i % COURSE_COLORS.length]])), [courseIds]);
 
   // Unique courses for filter dropdown
