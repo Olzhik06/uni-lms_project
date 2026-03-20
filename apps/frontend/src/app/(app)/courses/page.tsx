@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useMe } from '@/hooks/use-auth';
@@ -6,6 +7,7 @@ import type { Course, CourseProgress } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/form-elements';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { Users, FileText, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -41,9 +43,11 @@ function ProgressBar({ courseId }: { courseId: string }) {
 export default function CoursesPage() {
   const { data: user } = useMe();
   const t = useT();
+  const [page, setPage] = useState(1);
+  const pageSize = 6;
   const { data: courses, isLoading } = useQuery<Course[]>({
-    queryKey: ['courses'],
-    queryFn: () => api.get('/courses'),
+    queryKey: ['courses', page],
+    queryFn: () => api.get(`/courses?page=${page}&limit=${pageSize}`),
   });
   const isStudent = user?.role === 'STUDENT';
 
@@ -74,51 +78,61 @@ export default function CoursesPage() {
           <p className="text-muted-foreground/60 text-xs mt-1">{t.courses.notEnrolled}</p>
         </div>
       ) : (
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          animate="visible"
-          className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
-        >
-          {courses.map(c => (
-            <motion.div key={c.id} variants={item}>
-              <Link href={`/courses/${c.id}/overview`}>
-                <Card className="overflow-hidden hover:-translate-y-1 hover:shadow-lift cursor-pointer group h-full">
-                  <div className="h-1.5 bg-primary" />
-                  <CardContent className="pt-5">
-                    <div className="mb-3">
-                      <p className="text-xs font-semibold tracking-widest text-primary uppercase">{c.code}</p>
-                      <h3 className="font-medium text-foreground mt-0.5 leading-snug group-hover:text-primary transition-colors">{c.title}</h3>
-                    </div>
-                    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                      {c.teacher && (
-                        <span className="flex items-center gap-1.5">
-                          <Users className="h-3 w-3" />
-                          {c.teacher.fullName}
-                        </span>
-                      )}
-                      {c._count && (
-                        <span className="flex items-center gap-1.5">
-                          <FileText className="h-3 w-3" />
-                          {c._count.assignments} {t.courses.assignments}
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-3 flex gap-1.5 flex-wrap">
-                      <Badge variant="secondary">{c.semester}</Badge>
-                      {c.roleInCourse && (
-                        <Badge variant={c.roleInCourse === 'TEACHER' ? 'default' : 'outline'}>
-                          {c.roleInCourse}
-                        </Badge>
-                      )}
-                    </div>
-                    {isStudent && <ProgressBar courseId={c.id} />}
-                  </CardContent>
-                </Card>
-              </Link>
-            </motion.div>
-          ))}
-        </motion.div>
+        <div className="space-y-4">
+          <motion.div
+            variants={stagger}
+            initial="hidden"
+            animate="visible"
+            className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+          >
+            {courses.map(c => (
+              <motion.div key={c.id} variants={item}>
+                <Link href={`/courses/${c.id}/overview`}>
+                  <Card className="overflow-hidden hover:-translate-y-1 hover:shadow-lift cursor-pointer group h-full">
+                    <div className="h-1.5 bg-primary" />
+                    <CardContent className="pt-5">
+                      <div className="mb-3">
+                        <p className="text-xs font-semibold tracking-widest text-primary uppercase">{c.code}</p>
+                        <h3 className="font-medium text-foreground mt-0.5 leading-snug group-hover:text-primary transition-colors">{c.title}</h3>
+                      </div>
+                      <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                        {c.teacher && (
+                          <span className="flex items-center gap-1.5">
+                            <Users className="h-3 w-3" />
+                            {c.teacher.fullName}
+                          </span>
+                        )}
+                        {c._count && (
+                          <span className="flex items-center gap-1.5">
+                            <FileText className="h-3 w-3" />
+                            {c._count.assignments} {t.courses.assignments}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-3 flex gap-1.5 flex-wrap">
+                        <Badge variant="secondary">{c.semester}</Badge>
+                        {c.roleInCourse && (
+                          <Badge variant={c.roleInCourse === 'TEACHER' ? 'default' : 'outline'}>
+                            {c.roleInCourse}
+                          </Badge>
+                        )}
+                      </div>
+                      {isStudent && <ProgressBar courseId={c.id} />}
+                    </CardContent>
+                  </Card>
+                </Link>
+              </motion.div>
+            ))}
+          </motion.div>
+          <PaginationControls
+            page={page}
+            itemsCount={courses.length}
+            pageSize={pageSize}
+            isLoading={isLoading}
+            onPrevious={() => setPage(current => Math.max(1, current - 1))}
+            onNext={() => setPage(current => current + 1)}
+          />
+        </div>
       )}
     </div>
   );

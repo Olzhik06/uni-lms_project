@@ -9,6 +9,7 @@ import { formatDateTime } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '@/components/ui/form-elements';
 import { useT } from '@/lib/i18n';
+import { getNotificationContent } from '@/lib/notification-content';
 
 export default function NotificationsPage() {
   const t = useT();
@@ -20,12 +21,20 @@ export default function NotificationsPage() {
 
   const readAllMutation = useMutation({
     mutationFn: () => api.post('/me/notifications/read-all', {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notifs'] });
+      qc.invalidateQueries({ queryKey: ['nc'] });
+    },
   });
 
   const readOneMutation = useMutation({
     mutationFn: (id: string) => api.post(`/me/notifications/${id}/read`, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notifs'] });
+      qc.invalidateQueries({ queryKey: ['nc'] });
+    },
   });
 
   const unread = notifications.filter(n => !n.isRead).length;
@@ -79,33 +88,38 @@ export default function NotificationsPage() {
       >
         <AnimatePresence>
           {notifications.map(n => (
-            <motion.div
-              key={n.id}
-              layout
-              variants={{
-                hidden: { opacity: 0, y: 8 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.25 } },
-              }}
-              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Card
-                className={n.isRead ? 'opacity-55 hover:-translate-y-0.5 hover:opacity-70' : 'border-primary/20 bg-accent/40 hover:-translate-y-0.5'}
-                onClick={() => !n.isRead && readOneMutation.mutate(n.id)}
-              >
-                <CardContent className="p-4 flex items-start gap-3 cursor-pointer">
-                  <div
-                    className="mt-1.5 h-2 w-2 rounded-full shrink-0"
-                    style={{ background: n.isRead ? 'transparent' : 'hsl(var(--primary))' }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{n.title}</p>
-                    {n.body && <p className="text-xs text-muted-foreground mt-0.5">{n.body}</p>}
-                    <p className="text-xs text-muted-foreground mt-1.5">{formatDateTime(n.createdAt)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+            (() => {
+              const content = getNotificationContent(n, t);
+              return (
+                <motion.div
+                  key={n.id}
+                  layout
+                  variants={{
+                    hidden: { opacity: 0, y: 8 },
+                    visible: { opacity: 1, y: 0, transition: { duration: 0.25 } },
+                  }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Card
+                    className={n.isRead ? 'opacity-55 hover:-translate-y-0.5 hover:opacity-70' : 'border-primary/20 bg-accent/40 hover:-translate-y-0.5'}
+                    onClick={() => !n.isRead && readOneMutation.mutate(n.id)}
+                  >
+                    <CardContent className="p-4 flex items-start gap-3 cursor-pointer">
+                      <div
+                        className="mt-1.5 h-2 w-2 rounded-full shrink-0"
+                        style={{ background: n.isRead ? 'transparent' : 'hsl(var(--primary))' }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{content.title}</p>
+                        {content.body && <p className="text-xs text-muted-foreground mt-0.5">{content.body}</p>}
+                        <p className="text-xs text-muted-foreground mt-1.5">{formatDateTime(n.createdAt)}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })()
           ))}
         </AnimatePresence>
       </motion.div>

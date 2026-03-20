@@ -81,10 +81,10 @@ export default function AdminPage() {
       {/* Quick navigation */}
       <div className="grid gap-3 md:grid-cols-4">
         {[
-          { l: 'Manage Users',       h: '/admin/users' },
-          { l: 'Manage Courses',     h: '/admin/courses' },
-          { l: 'Manage Groups',      h: '/admin/groups' },
-          { l: 'Manage Enrollments', h: '/admin/enrollments' },
+          { l: t.admin.manageUsers,       h: '/admin/users' },
+          { l: t.admin.manageCourses,     h: '/admin/courses' },
+          { l: t.admin.manageGroups,      h: '/admin/groups' },
+          { l: t.admin.manageEnrollments, h: '/admin/enrollments' },
         ].map(x => (
           <Link key={x.h} href={x.h}>
             <Card className="hover:border-primary/30 transition-colors cursor-pointer">

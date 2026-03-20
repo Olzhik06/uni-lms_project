@@ -39,6 +39,13 @@ export function Sidebar() {
   const [mo, smo] = useState(false);
 
   const ia = (h: string) => path === h || (h !== '/dashboard' && h !== '/admin' && path.startsWith(h + '/'));
+  const roleLabel = user?.role
+    ? {
+        ADMIN: t.adminCrud.userRoleAdmin,
+        TEACHER: t.adminCrud.userRoleTeacher,
+        STUDENT: t.adminCrud.userRoleStudent,
+      }[user.role]
+    : '';
 
   const lk = (i: { href: string; key: keyof typeof t.nav; icon: React.ElementType }) => (
     <motion.div key={i.href} variants={item}>
@@ -125,7 +132,7 @@ export function Sidebar() {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-medium truncate leading-tight">{user?.fullName}</p>
-            <p className="text-xs text-muted-foreground capitalize">{user?.role?.toLowerCase()}</p>
+            <p className="text-xs text-muted-foreground">{roleLabel}</p>
           </div>
         </div>
       </div>

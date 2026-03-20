@@ -14,11 +14,14 @@ import { formatDateTime } from '@/lib/utils';
 import { useState } from 'react';
 import { Send, MessageSquare, Sparkles, BookOpen, Lightbulb, BarChart3, FlaskConical } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage, useT } from '@/lib/i18n';
 
 export default function OverviewPage() {
   const { id } = useParams<{ id: string }>();
   const { data: user } = useMe();
   const qc = useQueryClient();
+  const t = useT();
+  const { lang } = useLanguage();
 
   const [show, setShow] = useState(false);
   const [title, setTitle] = useState('');
@@ -40,20 +43,20 @@ export default function OverviewPage() {
     mutationFn: (d: { title: string; body: string }) => api.post(`/courses/${id}/announcements`, d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['c-anns', id] });
-      toast({ title: 'Posted' });
+      toast({ title: t.courseOverview.posted });
       setTitle(''); setBody(''); setShow(false);
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: t.common.error, description: e.message, variant: 'destructive' }),
   });
 
   const handleSummary = async () => {
     setSummaryLoading(true);
     setSummary(null);
     try {
-      const result = await api.post<AiCourseSummary>('/ai/course-summary', { courseId: id });
+      const result = await api.post<AiCourseSummary>('/ai/course-summary', { courseId: id, lang });
       setSummary(result);
     } catch (e: any) {
-      toast({ title: 'AI unavailable', description: e.message, variant: 'destructive' });
+      toast({ title: t.courseOverview.aiUnavailable, description: e.message, variant: 'destructive' });
     } finally {
       setSummaryLoading(false);
     }
@@ -66,16 +69,21 @@ export default function OverviewPage() {
     moderate: 'bg-yellow-100 text-yellow-800',
     heavy: 'bg-red-100 text-red-800',
   };
+  const workloadLabel = {
+    light: t.courseOverview.workloadLight,
+    moderate: t.courseOverview.workloadModerate,
+    heavy: t.courseOverview.workloadHeavy,
+  };
 
   return (
     <div className="space-y-4 mt-4">
       {/* Course info card */}
       <Card>
         <CardContent className="pt-6">
-          <p className="text-sm">{course?.description || 'No description.'}</p>
+          <p className="text-sm">{course?.description || t.courseOverview.noDescription}</p>
           <div className="mt-4 flex gap-4 text-sm text-muted-foreground">
-            <span>Instructor: {course?.teacher?.fullName}</span>
-            <span>{(course as any)?._count?.enrollments} enrolled</span>
+            <span>{t.courseOverview.instructor}: {course?.teacher?.fullName}</span>
+            <span>{(course as any)?._count?.enrollments} {t.courseOverview.enrolled}</span>
           </div>
         </CardContent>
       </Card>
@@ -89,7 +97,7 @@ export default function OverviewPage() {
             className="gap-2 border-purple-200 text-purple-700 hover:bg-purple-50"
           >
             <Sparkles className="h-4 w-4" />
-            AI Course Summary
+            {t.courseOverview.aiSummary}
           </Button>
         )}
 
@@ -98,7 +106,7 @@ export default function OverviewPage() {
             <CardContent className="pt-5 space-y-3">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <div className="h-4 w-4 rounded-full border-2 border-purple-400 border-t-transparent animate-spin" />
-                Generating course summary...
+                {t.courseOverview.generatingSummary}
               </div>
               {[1, 2, 3].map(i => <Skeleton key={i} className="h-4 w-full" />)}
             </CardContent>
@@ -111,13 +119,13 @@ export default function OverviewPage() {
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-sm flex items-center gap-2 text-purple-800">
                   <Sparkles className="h-4 w-4" />
-                  AI Course Summary
+                  {t.courseOverview.aiSummary}
                   {(summary as any)._demo && (
-                    <Badge variant="outline" className="text-xs font-normal border-purple-200 text-purple-600">demo</Badge>
+                    <Badge variant="outline" className="text-xs font-normal border-purple-200 text-purple-600">{t.courseOverview.demo}</Badge>
                   )}
                 </h3>
                 <Badge className={cn('text-xs capitalize', workloadColor[summary.workload] ?? 'bg-gray-100 text-gray-700')}>
-                  {summary.workload} workload
+                  {workloadLabel[summary.workload] ?? summary.workload}
                 </Badge>
               </div>
 
@@ -126,7 +134,7 @@ export default function OverviewPage() {
               {summary.keyTopics.length > 0 && (
                 <div>
                   <p className="text-xs font-medium flex items-center gap-1.5 mb-1.5 text-foreground">
-                    <BookOpen className="h-3.5 w-3.5" /> Key Topics
+                    <BookOpen className="h-3.5 w-3.5" /> {t.courseOverview.keyTopics}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {summary.keyTopics.map((t, i) => (
@@ -139,7 +147,7 @@ export default function OverviewPage() {
               {summary.tips.length > 0 && (
                 <div>
                   <p className="text-xs font-medium flex items-center gap-1.5 mb-1.5 text-foreground">
-                    <Lightbulb className="h-3.5 w-3.5" /> Study Tips
+                    <Lightbulb className="h-3.5 w-3.5" /> {t.courseOverview.studyTips}
                   </p>
                   <ul className="space-y-1">
                     {summary.tips.map((tip, i) => (
@@ -157,7 +165,7 @@ export default function OverviewPage() {
                 onClick={handleSummary}
                 className="text-xs text-muted-foreground h-auto py-1 px-2"
               >
-                <FlaskConical className="h-3 w-3 mr-1" /> Regenerate
+                <FlaskConical className="h-3 w-3 mr-1" /> {t.courseOverview.regenerate}
               </Button>
             </CardContent>
           </Card>
@@ -168,16 +176,16 @@ export default function OverviewPage() {
       {canPost && (
         !show
           ? <Button variant="outline" onClick={() => setShow(true)} className="gap-2">
-              <MessageSquare className="h-4 w-4" /> Post Announcement
+              <MessageSquare className="h-4 w-4" /> {t.courseOverview.postAnnouncement}
             </Button>
           : <Card>
               <CardContent className="pt-6 space-y-3">
-                <Input placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} />
-                <Textarea placeholder="Write..." value={body} onChange={e => setBody(e.target.value)} rows={3} />
+                <Input placeholder={t.courseOverview.titlePlaceholder} value={title} onChange={e => setTitle(e.target.value)} />
+                <Textarea placeholder={t.courseOverview.bodyPlaceholder} value={body} onChange={e => setBody(e.target.value)} rows={3} />
                 <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => setShow(false)}>Cancel</Button>
+                  <Button variant="outline" onClick={() => setShow(false)}>{t.common.cancel}</Button>
                   <Button onClick={() => post.mutate({ title, body })} disabled={!title || !body} className="gap-2">
-                    <Send className="h-4 w-4" /> Post
+                    <Send className="h-4 w-4" /> {t.common.post}
                   </Button>
                 </div>
               </CardContent>
@@ -185,11 +193,11 @@ export default function OverviewPage() {
       )}
 
       {/* Announcements stream */}
-      <h2 className="text-lg font-semibold">Course Stream</h2>
+      <h2 className="text-lg font-semibold">{t.courseOverview.streamTitle}</h2>
       {isLoading
         ? <div className="space-y-3">{[1, 2].map(i => <Skeleton key={i} className="h-24 w-full" />)}</div>
         : !anns?.length
-          ? <Card><CardContent className="py-8 text-center text-muted-foreground">No announcements yet</CardContent></Card>
+          ? <Card><CardContent className="py-8 text-center text-muted-foreground">{t.courseOverview.noAnnouncements}</CardContent></Card>
           : <div className="space-y-3">
               {anns.map(a => (
                 <Card key={a.id}>

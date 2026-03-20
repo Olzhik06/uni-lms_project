@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { useLanguage, type Lang } from '@/lib/i18n';
 
 function ThemeToggle() {
+  const { t } = useLanguage();
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -25,7 +26,7 @@ function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      aria-label="Toggle theme"
+      aria-label={t.common.toggleTheme}
       className="text-muted-foreground hover:text-foreground transition-colors"
     >
       {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -61,7 +62,6 @@ export function Topbar() {
   const { data: uc } = useQuery<number>({
     queryKey: ['nc'],
     queryFn: () => api.get<number>('/me/notifications/unread-count'),
-    refetchInterval: 30_000,
   });
 
   return (

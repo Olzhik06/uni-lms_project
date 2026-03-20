@@ -1,6 +1,6 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { EnrollmentsService } from './enrollments.service';
 import { CreateEnrollmentDto } from './enrollments.dto';
@@ -10,7 +10,12 @@ import { RolesGuard } from '../common/guards/roles.guard';
 @ApiTags('Admin - Enrollments') @ApiBearerAuth() @UseGuards(AuthGuard('jwt'), RolesGuard) @Roles(Role.ADMIN) @Controller('admin/enrollments')
 export class EnrollmentsController {
   constructor(private svc: EnrollmentsService) {}
-  @Get() findAll() { return this.svc.findAll(); }
+  @Get()
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.svc.findAll(page ? +page : undefined, limit ? +limit : undefined);
+  }
   @Post() create(@Body() dto: CreateEnrollmentDto) { return this.svc.create(dto); }
   @Delete(':id') remove(@Param('id') id: string) { return this.svc.remove(id); }
 }

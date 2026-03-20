@@ -38,12 +38,12 @@ function StudentGrades({ courseId }: { courseId: string }) {
 
       {courseSummary && (
         <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="p-4 flex items-center gap-6">
+          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-6">
             <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
               <Award className="h-7 w-7 text-primary"/>
             </div>
-            <div className="flex-1 grid grid-cols-3 gap-4">
-              <div><p className="text-2xl font-bold text-primary">{courseSummary.percentage}%</p><p className="text-xs text-muted-foreground">Overall</p></div>
+            <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-3">
+              <div><p className="text-2xl font-bold text-primary">{courseSummary.percentage}%</p><p className="text-xs text-muted-foreground">{t.courseGrades.overall}</p></div>
               <div><p className="text-2xl font-bold">{courseSummary.totalEarned}</p><p className="text-xs text-muted-foreground">{t.grades.pointsEarned}</p></div>
               <div><p className="text-2xl font-bold">{courseSummary.gradesCount}</p><p className="text-xs text-muted-foreground">{t.grades.graded}</p></div>
             </div>
@@ -61,7 +61,7 @@ function StudentGrades({ courseId }: { courseId: string }) {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-medium text-sm">{g.submission?.assignment?.title}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">{t.grades.graded} by {g.gradedBy?.fullName}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t.courseGrades.gradedBy} {g.gradedBy?.fullName}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-xl font-bold text-primary">{g.score}<span className="text-sm text-muted-foreground font-normal">/{g.submission?.assignment?.maxScore}</span></p>
@@ -92,8 +92,8 @@ function TeacherGrades({ courseId }: { courseId: string }) {
 
   const gradeM = useMutation({
     mutationFn: ({ sid, d }: { sid: string; d: any }) => api.post(`/submissions/${sid}/grade`, d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['subs', selA] }); qc.invalidateQueries({ queryKey: ['grade-stats', courseId] }); toast({ title: 'Grade saved' }); setGOpen(null); },
-    onError: () => toast({ title: 'Error', variant: 'destructive' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['subs', selA] }); qc.invalidateQueries({ queryKey: ['grade-stats', courseId] }); toast({ title: t.courseGrades.gradeSaved }); setGOpen(null); },
+    onError: () => toast({ title: t.common.error, variant: 'destructive' }),
   });
 
   const exportCsv = () => {
@@ -106,15 +106,15 @@ function TeacherGrades({ courseId }: { courseId: string }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `grades-${courseId}.csv`;
+    a.download = `${t.courseGrades.exportFilename}-${courseId}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Gradebook</h2>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-lg font-semibold">{t.courseGrades.gradebook}</h2>
         <Button size="sm" variant="outline" onClick={exportCsv} className="gap-2">
           <Download className="h-4 w-4" />{t.common.export}
         </Button>
@@ -122,13 +122,13 @@ function TeacherGrades({ courseId }: { courseId: string }) {
 
       {stats && (
         <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="p-4 flex items-center gap-4">
+          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
             <TrendingUp className="h-6 w-6 text-blue-600"/>
             <div>
               <p className="text-sm font-medium">{t.grades.courseAvg}</p>
-              <p className="text-2xl font-bold text-blue-700">{stats.courseAverage !== null ? `${stats.courseAverage} pts` : '—'}</p>
+              <p className="text-2xl font-bold text-blue-700">{stats.courseAverage !== null ? `${stats.courseAverage} ${t.courseGrades.pointsShort}` : '—'}</p>
             </div>
-            <div className="ml-auto flex gap-6 text-center">
+            <div className="grid grid-cols-2 gap-4 text-center sm:ml-auto sm:flex sm:gap-6">
               <div><p className="text-lg font-bold">{stats.assignments.length}</p><p className="text-xs text-muted-foreground">{t.courseLayout.assignments}</p></div>
               <div><p className="text-lg font-bold">{stats.assignments.reduce((a, b) => a + b.gradedCount, 0)}</p><p className="text-xs text-muted-foreground">{t.grades.graded}</p></div>
             </div>
@@ -138,7 +138,7 @@ function TeacherGrades({ courseId }: { courseId: string }) {
 
       {stats && stats.assignments.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold flex items-center gap-2 mb-2"><BarChart2 className="h-4 w-4"/>Per-Assignment Averages</h3>
+          <h3 className="text-sm font-semibold flex items-center gap-2 mb-2"><BarChart2 className="h-4 w-4"/>{t.courseGrades.perAssignmentAverages}</h3>
           <div className="space-y-2">
             {stats.assignments.map(a => (
               <Card key={a.assignmentId}>
@@ -159,31 +159,31 @@ function TeacherGrades({ courseId }: { courseId: string }) {
       )}
 
       <div>
-        <h3 className="text-sm font-semibold mb-2">Grade {t.grades.submissions}</h3>
-        <div className="mb-3 overflow-x-auto -mx-4 px-4">
+        <h3 className="text-sm font-semibold mb-2">{t.courseGrades.gradeSubmissions}</h3>
+        <div className="mb-3">
           <Label>{t.grades.selectAssignment}</Label>
           <Select value={selA} onChange={e => setSelA(e.target.value)}>
-            <option value="">Choose assignment…</option>
+            <option value="">{t.courseGrades.chooseAssignment}</option>
             {asgns?.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
           </Select>
         </div>
 
         {selA && subs && (
-          <div className="space-y-3 overflow-x-auto -mx-4 px-4">
+          <div className="space-y-3">
             {!subs.length ? (
               <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">{t.grades.noGrades}</CardContent></Card>
             ) : subs.map(s => (
               <Card key={s.id}>
-                <CardContent className="py-4 flex items-center justify-between gap-4">
+                <CardContent className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm">{s.student?.fullName}</p>
                     <p className="text-xs text-muted-foreground">{s.student?.email}</p>
                     {s.contentText && <p className="text-xs mt-1 text-muted-foreground truncate">{s.contentText}</p>}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {s.grade ? <Badge variant="secondary">{s.grade.score} pts</Badge> : <Badge variant="outline" className="text-amber-600 border-amber-300">{t.grades.notGraded}</Badge>}
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {s.grade ? <Badge variant="secondary">{s.grade.score} {t.courseGrades.pointsShort}</Badge> : <Badge variant="outline" className="text-amber-600 border-amber-300">{t.grades.notGraded}</Badge>}
                     <Button size="sm" variant="outline" onClick={() => { setGOpen(s); setGs(s.grade?.score?.toString() || ''); setGf(s.grade?.feedback || ''); }}>
-                      {s.grade ? 'Edit' : t.common.grade}
+                      {s.grade ? t.courseGrades.edit : t.common.grade}
                     </Button>
                   </div>
                 </CardContent>
@@ -197,8 +197,8 @@ function TeacherGrades({ courseId }: { courseId: string }) {
         <DialogHeader><DialogTitle>{t.common.grade}: {gOpen?.student?.fullName}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           {gOpen?.contentText && <div className="p-3 bg-muted rounded-lg text-sm max-h-32 overflow-y-auto">{gOpen.contentText}</div>}
-          <div><Label>Score</Label><Input type="number" min={0} value={gs} onChange={e => setGs(e.target.value)} placeholder="Score"/></div>
-          <div><Label>Feedback (optional)</Label><Textarea rows={3} value={gf} onChange={e => setGf(e.target.value)} placeholder="Feedback for student"/></div>
+          <div><Label>{t.courseGrades.score}</Label><Input type="number" min={0} value={gs} onChange={e => setGs(e.target.value)} placeholder={t.courseGrades.score}/></div>
+          <div><Label>{t.courseGrades.feedbackOptional}</Label><Textarea rows={3} value={gf} onChange={e => setGf(e.target.value)} placeholder={t.courseGrades.feedbackPlaceholder}/></div>
           <Button className="w-full" onClick={() => gradeM.mutate({ sid: gOpen!.id, d: { score: parseFloat(gs), feedback: gf || undefined } })} disabled={!gs || gradeM.isPending}>
             {gradeM.isPending ? t.common.loading : `${t.common.save} ${t.common.grade}`}
           </Button>

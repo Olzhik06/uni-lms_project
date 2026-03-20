@@ -13,6 +13,7 @@ import { toast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { FileText, Link as LinkIcon, AlignLeft, Trash2, Plus } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 const TYPE_ICONS = { link: LinkIcon, file: FileText, text: AlignLeft };
 const TYPE_COLORS: Record<string, string> = {
@@ -25,6 +26,7 @@ export default function MaterialsPage() {
   const { id } = useParams<{ id: string }>();
   const { data: user } = useMe();
   const qc = useQueryClient();
+  const t = useT();
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', type: 'link', url: '', content: '' });
@@ -42,16 +44,20 @@ export default function MaterialsPage() {
       qc.invalidateQueries({ queryKey: ['materials', id] });
       setShowForm(false);
       setForm({ title: '', type: 'link', url: '', content: '' });
-      toast({ title: 'Material added' });
+      toast({ title: t.courseMaterials.materialAdded });
     },
-    onError: () => toast({ title: 'Error', description: 'Could not add material', variant: 'destructive' }),
+    onError: () => toast({
+      title: t.courseMaterials.materialAddFailedTitle,
+      description: t.courseMaterials.materialAddFailedDescription,
+      variant: 'destructive',
+    }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (matId: string) => api.delete(`/materials/${matId}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['materials', id] });
-      toast({ title: 'Material deleted' });
+      toast({ title: t.courseMaterials.materialDeleted });
     },
   });
 
@@ -60,46 +66,51 @@ export default function MaterialsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Course Materials</h2>
+        <h2 className="text-lg font-semibold">{t.courseMaterials.title}</h2>
         {canManage && (
           <Button size="sm" onClick={() => setShowForm(!showForm)} className="gap-2">
-            <Plus className="h-4 w-4" />Add Material
+            <Plus className="h-4 w-4" />{t.courseMaterials.addMaterial}
           </Button>
         )}
       </div>
 
       {showForm && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Add Material</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t.courseMaterials.addMaterialTitle}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <Input placeholder="Title" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+            <Input placeholder={t.courseMaterials.titlePlaceholder} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
             <Select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
-              <option value="link">Link</option>
-              <option value="file">File URL</option>
-              <option value="text">Text Content</option>
+              <option value="link">{t.courseMaterials.linkType}</option>
+              <option value="file">{t.courseMaterials.fileType}</option>
+              <option value="text">{t.courseMaterials.textType}</option>
             </Select>
             {(form.type === 'link' || form.type === 'file') && (
-              <Input placeholder="URL" value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} />
+              <Input placeholder={t.courseMaterials.urlPlaceholder} value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} />
             )}
             {form.type === 'text' && (
-              <Textarea placeholder="Content" value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} rows={4} />
+              <Textarea placeholder={t.courseMaterials.contentPlaceholder} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} rows={4} />
             )}
             <div className="flex gap-2">
               <Button size="sm" onClick={() => addMutation.mutate({ title: form.title, type: form.type, url: form.url || undefined, content: form.content || undefined })} disabled={!form.title || addMutation.isPending}>
-                {addMutation.isPending ? 'Saving...' : 'Save'}
+                {addMutation.isPending ? t.courseMaterials.saving : t.common.save}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>{t.common.cancel}</Button>
             </div>
           </CardContent>
         </Card>
       )}
 
       {(materials || []).length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No materials yet</p>
+        <p className="text-sm text-muted-foreground py-8 text-center">{t.courseMaterials.noMaterials}</p>
       ) : (
         <div className="space-y-3">
           {(materials || []).map(m => {
             const Icon = TYPE_ICONS[m.type as keyof typeof TYPE_ICONS] || FileText;
+            const typeLabel = m.type === 'link'
+              ? t.courseMaterials.typeLink
+              : m.type === 'file'
+                ? t.courseMaterials.typeFile
+                : t.courseMaterials.typeText;
             return (
               <Card key={m.id}>
                 <CardContent className="p-4 flex items-start gap-4">
@@ -110,7 +121,7 @@ export default function MaterialsPage() {
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-medium text-sm">{m.title}</p>
                       <div className="flex items-center gap-2 shrink-0">
-                        <Badge variant="secondary" className="text-[10px]">{m.type}</Badge>
+                        <Badge variant="secondary" className="text-[10px]">{typeLabel}</Badge>
                         {canManage && (
                           <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMutation.mutate(m.id)}>
                             <Trash2 className="h-3.5 w-3.5" />

@@ -4,6 +4,7 @@ import { CreateAssignmentDto, UpdateAssignmentDto, SubmitDto, GradeDto } from '.
 import { Role, CourseRole, SubmissionStatus, NotificationType } from '@prisma/client';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { MailService } from '../mail/mail.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AssignmentsService {
@@ -11,6 +12,7 @@ export class AssignmentsService {
     private db: PrismaService,
     private activityLog: ActivityLogService,
     private mail: MailService,
+    private notifications: NotificationsService,
   ) {}
 
   findByCourse(cid: string, page = 1, limit = 20) {
@@ -51,14 +53,12 @@ export class AssignmentsService {
 
     await Promise.all(
       enrollments.map(async (e) => {
-        await this.db.notification.create({
-          data: {
-            userId: e.userId,
-            type: NotificationType.ASSIGNMENT_DUE,
-            title: 'New assignment: ' + dto.title,
-            body: (assignment.course?.title || '') + ' — due ' + new Date(dto.dueAt).toLocaleDateString(),
-            link: '/courses/' + cid + '/assignments',
-          },
+        await this.notifications.create({
+          userId: e.userId,
+          type: NotificationType.ASSIGNMENT_DUE,
+          title: 'New assignment: ' + dto.title,
+          body: (assignment.course?.title || '') + ' — due ' + new Date(dto.dueAt).toLocaleDateString(),
+          link: '/courses/' + cid + '/assignments',
         });
         await this.mail.sendAssignmentCreated(e.user.email, dto.title, assignment.course?.title || '', new Date(dto.dueAt));
       }),
@@ -120,14 +120,12 @@ export class AssignmentsService {
 
     await this.activityLog.log(byId, 'GRADE', 'Grade', grade.id);
 
-    await this.db.notification.create({
-      data: {
-        userId: sub.studentId,
-        type: NotificationType.GRADE_PUBLISHED,
-        title: 'Grade published',
-        body: '"' + sub.assignment.title + '" scored ' + dto.score + '/' + sub.assignment.maxScore,
-        link: '/courses/' + sub.assignment.courseId + '/grades',
-      },
+    await this.notifications.create({
+      userId: sub.studentId,
+      type: NotificationType.GRADE_PUBLISHED,
+      title: 'Grade published',
+      body: '"' + sub.assignment.title + '" scored ' + dto.score + '/' + sub.assignment.maxScore,
+      link: '/courses/' + sub.assignment.courseId + '/grades',
     });
 
     await this.mail.sendGradePublished(

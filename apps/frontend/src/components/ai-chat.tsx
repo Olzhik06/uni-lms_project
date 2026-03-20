@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { MessageCircle, X, Send, Sparkles, Bot } from 'lucide-react';
+import { useLanguage, useT } from '@/lib/i18n';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -11,6 +12,8 @@ interface Message {
 }
 
 export function AiChat() {
+  const t = useT();
+  const { lang } = useLanguage();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -42,7 +45,7 @@ export function AiChat() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, lang }),
         signal: ctrl.signal,
       });
 
@@ -85,7 +88,7 @@ export function AiChat() {
       if (e.name !== 'AbortError') {
         setMessages(prev => {
           const msgs = [...prev];
-          msgs[msgs.length - 1] = { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' };
+          msgs[msgs.length - 1] = { role: 'assistant', content: t.aiChat.error };
           return msgs;
         });
       }
@@ -110,7 +113,7 @@ export function AiChat() {
           'bg-gradient-to-br from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white',
           open && 'scale-90'
         )}
-        aria-label="AI Assistant"
+        aria-label={t.aiChat.ariaLabel}
       >
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
       </button>
@@ -122,7 +125,7 @@ export function AiChat() {
           {/* Header */}
           <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
             <Sparkles className="h-4 w-4" />
-            <span className="font-semibold text-sm">AI Academic Assistant</span>
+            <span className="font-semibold text-sm">{t.aiChat.title}</span>
             <button onClick={handleClose} className="ml-auto opacity-80 hover:opacity-100">
               <X className="h-4 w-4" />
             </button>
@@ -133,7 +136,7 @@ export function AiChat() {
             {messages.length === 0 && (
               <div className="text-center text-muted-foreground text-sm pt-8 space-y-2">
                 <Bot className="h-10 w-10 mx-auto opacity-30" />
-                <p>Ask me anything about your courses, assignments, or study tips!</p>
+                <p>{t.aiChat.empty}</p>
               </div>
             )}
             {messages.map((msg, i) => (
@@ -160,7 +163,7 @@ export function AiChat() {
           {/* Input */}
           <div className="p-3 border-t flex gap-2">
             <Input
-              placeholder="Ask anything..."
+              placeholder={t.aiChat.placeholder}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}

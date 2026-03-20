@@ -65,7 +65,7 @@ export class AiController {
     res.flushHeaders();
 
     try {
-      for await (const chunk of this.svc.chatStream(dto.message, user.id, dto.context)) {
+      for await (const chunk of this.svc.chatStream(dto.message, user.id, dto.context, dto.lang)) {
         res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
       }
       res.write('data: [DONE]\n\n');

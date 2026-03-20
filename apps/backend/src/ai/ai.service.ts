@@ -13,7 +13,76 @@ const QuizSchema = z.object({
   })),
 });
 
-const DEMO_NOTE = 'This is a demo response. Set LLM_API_KEY to enable real AI.';
+type AiLang = 'en' | 'ru' | 'kz';
+
+const DEMO_TEXT = {
+  en: {
+    note: 'This is a demo response. Set LLM_API_KEY to enable real AI.',
+    assignmentAssessment: 'Overall this submission demonstrates a solid understanding of the assignment requirements.',
+    assignmentStrengths: ['Clear structure and logical flow', 'Addresses the core requirements', 'Good use of terminology'],
+    assignmentImprovements: ['Could expand on supporting arguments', 'More specific examples would strengthen the response'],
+    assignmentSuggestions: ['Review lecture notes on this topic', 'Compare with model solutions if available', 'Ask your teacher for clarification on any unclear points'],
+    quizQuestionPrefix: '[Demo] Sample question',
+    quizQuestionAbout: 'about',
+    quizCorrect: 'Option A (correct)',
+    quizOptions: ['Option B', 'Option C', 'Option D'],
+    quizExplanation: 'This is a placeholder question.',
+    courseSummary: 'covers fundamental concepts and practical applications in the field.',
+    courseTopics: ['Core concepts', 'Practical applications', 'Assessment strategies'],
+    courseTips: ['Review materials regularly', 'Complete assignments on time', 'Participate in discussions'],
+    analysis: 'shows consistent engagement with course materials and submits work on time.',
+    analysisStrengths: ['Consistent assignment submission', 'Good attendance record'],
+    analysisImprovements: ['Could improve grade scores', 'More active participation recommended'],
+    analysisRecommendations: ['Schedule office hours with instructor', 'Form study groups with peers', 'Review feedback on past assignments'],
+    chatIntro: '[Demo mode]',
+    chatYouAsked: 'You asked:',
+    chatReply: 'In a real deployment, I would provide a detailed academic response here.',
+  },
+  ru: {
+    note: 'Это демо-ответ. Укажите LLM_API_KEY, чтобы включить настоящий ИИ.',
+    assignmentAssessment: 'В целом работа показывает хорошее понимание требований задания.',
+    assignmentStrengths: ['Понятная структура и логичный ход мысли', 'Затронуты основные требования задания', 'Термины использованы уместно'],
+    assignmentImprovements: ['Можно подробнее раскрыть аргументацию', 'Более конкретные примеры сделали бы ответ сильнее'],
+    assignmentSuggestions: ['Повторите конспекты и материалы по теме', 'Сравните ответ с примерами решений, если они доступны', 'Уточните спорные моменты у преподавателя'],
+    quizQuestionPrefix: '[Демо] Пример вопроса',
+    quizQuestionAbout: 'по теме',
+    quizCorrect: 'Вариант A (верный)',
+    quizOptions: ['Вариант B', 'Вариант C', 'Вариант D'],
+    quizExplanation: 'Это демонстрационный вопрос-заглушка.',
+    courseSummary: 'охватывает фундаментальные концепции и их практическое применение.',
+    courseTopics: ['Базовые концепции', 'Практическое применение', 'Стратегии оценки знаний'],
+    courseTips: ['Регулярно просматривайте материалы', 'Сдавайте задания вовремя', 'Участвуйте в обсуждениях и занятиях'],
+    analysis: 'показывает стабильную вовлечённость в курс и своевременно сдаёт работы.',
+    analysisStrengths: ['Стабильная сдача заданий', 'Хорошая посещаемость'],
+    analysisImprovements: ['Есть потенциал улучшить результаты по баллам', 'Стоит активнее участвовать в учебной работе'],
+    analysisRecommendations: ['Запишитесь на консультацию к преподавателю', 'Организуйте учебную группу с однокурсниками', 'Пересмотрите комментарии к прошлым работам'],
+    chatIntro: '[Демо-режим]',
+    chatYouAsked: 'Вы спросили:',
+    chatReply: 'В реальном режиме я бы дал здесь более подробный академический ответ.',
+  },
+  kz: {
+    note: 'Бұл демо-жауап. Нақты ЖИ қосу үшін LLM_API_KEY орнатыңыз.',
+    assignmentAssessment: 'Жалпы алғанда, бұл жұмыс тапсырма талаптарын жақсы түсінетінін көрсетеді.',
+    assignmentStrengths: ['Құрылымы түсінікті және ой ағымы логикалық', 'Тапсырманың негізгі талаптары қамтылған', 'Терминдер орынды қолданылған'],
+    assignmentImprovements: ['Дәлелдерді сәл кеңірек ашуға болады', 'Нақты мысалдар жауапты күшейтер еді'],
+    assignmentSuggestions: ['Тақырып бойынша дәріс жазбаларын қайталаңыз', 'Мүмкін болса, үлгі шешімдермен салыстырыңыз', 'Түсініксіз жерлерді оқытушымен нақтылаңыз'],
+    quizQuestionPrefix: '[Демо] Үлгі сұрақ',
+    quizQuestionAbout: 'тақырыбы бойынша',
+    quizCorrect: 'A нұсқасы (дұрыс)',
+    quizOptions: ['B нұсқасы', 'C нұсқасы', 'D нұсқасы'],
+    quizExplanation: 'Бұл демонстрациялық үлгі сұрақ.',
+    courseSummary: 'негізгі ұғымдар мен олардың практикалық қолданылуын қамтиды.',
+    courseTopics: ['Негізгі ұғымдар', 'Практикалық қолдану', 'Бағалау стратегиялары'],
+    courseTips: ['Материалдарды жүйелі түрде қайталаңыз', 'Тапсырмаларды уақытында тапсырыңыз', 'Талқылаулар мен сабақтарға белсенді қатысыңыз'],
+    analysis: 'курс материалдарына тұрақты түрде қатысып, жұмыстарын уақытында тапсырады.',
+    analysisStrengths: ['Тапсырмаларды тұрақты тапсырады', 'Қатысу көрсеткіші жақсы'],
+    analysisImprovements: ['Ұпай нәтижелерін әлі де жақсартуға болады', 'Оқу процесіне белсендірек қатысу ұсынылады'],
+    analysisRecommendations: ['Оқытушымен жеке кеңеске жазылыңыз', 'Топтастармен бірге оқу тобын құрыңыз', 'Алдыңғы жұмыстарға берілген пікірлерді қайта қарап шығыңыз'],
+    chatIntro: '[Демо режимі]',
+    chatYouAsked: 'Сіз сұрадыңыз:',
+    chatReply: 'Нақты режимде мен мұнда толығырақ академиялық жауап берер едім.',
+  },
+} as const;
 
 @Injectable()
 export class AiService {
@@ -31,6 +100,14 @@ export class AiService {
 
   get isDemo() { return !this.client; }
 
+  private resolveLang(lang?: string): AiLang {
+    return lang === 'ru' || lang === 'kz' ? lang : 'en';
+  }
+
+  private demoText(lang?: string) {
+    return DEMO_TEXT[this.resolveLang(lang)];
+  }
+
   private async log(userId: string, type: string, prompt: string, response: string) {
     try {
       await this.db.aiRequestLog.create({ data: { userId, type, prompt, response } });
@@ -40,6 +117,7 @@ export class AiService {
   }
 
   async getAssignmentFeedback(dto: AssignmentFeedbackDto, userId: string, userRole: string) {
+    const demo = this.demoText(dto.lang);
     const submission = await this.db.submission.findUnique({
       where: { id: dto.submissionId },
       include: { assignment: true, grade: true },
@@ -54,10 +132,10 @@ export class AiService {
     if (this.isDemo) {
       return {
         _demo: true,
-        assessment: `${DEMO_NOTE} Overall this submission demonstrates a solid understanding of the assignment requirements.`,
-        strengths: ['Clear structure and logical flow', 'Addresses the core requirements', 'Good use of terminology'],
-        improvements: ['Could expand on supporting arguments', 'More specific examples would strengthen the response'],
-        suggestions: ['Review lecture notes on this topic', 'Compare with model solutions if available', 'Ask your teacher for clarification on any unclear points'],
+        assessment: `${demo.note} ${demo.assignmentAssessment}`,
+        strengths: demo.assignmentStrengths,
+        improvements: demo.assignmentImprovements,
+        suggestions: demo.assignmentSuggestions,
       };
     }
 
@@ -99,6 +177,7 @@ Be encouraging and constructive. Format as JSON: { "assessment": "...", "strengt
   }
 
   async generateQuiz(dto: GenerateQuizDto, userId: string) {
+    const demo = this.demoText(dto.lang);
     const count = dto.questionCount ?? 5;
     const difficulty = dto.difficulty ?? 'medium';
 
@@ -109,10 +188,10 @@ Be encouraging and constructive. Format as JSON: { "assessment": "...", "strengt
       return {
         _demo: true,
         questions: Array.from({ length: count }, (_, i) => ({
-          question: `[Demo] Sample question ${i + 1} about "${dto.topic}"?`,
-          options: ['Option A (correct)', 'Option B', 'Option C', 'Option D'],
+          question: `${demo.quizQuestionPrefix} ${i + 1} ${demo.quizQuestionAbout} "${dto.topic}"?`,
+          options: [demo.quizCorrect, ...demo.quizOptions],
           correctIndex: 0,
-          explanation: `${DEMO_NOTE} This is a placeholder question.`,
+          explanation: `${demo.note} ${demo.quizExplanation}`,
         })),
       };
     }
@@ -159,6 +238,7 @@ correctIndex is 0-based (0=A, 1=B, 2=C, 3=D). Do not include any text outside th
   }
 
   async getCourseSummary(dto: CourseSummaryDto, userId: string) {
+    const demo = this.demoText(dto.lang);
     const course = await this.db.course.findUnique({
       where: { id: dto.courseId },
       include: {
@@ -172,9 +252,9 @@ correctIndex is 0-based (0=A, 1=B, 2=C, 3=D). Do not include any text outside th
     if (this.isDemo) {
       return {
         _demo: true,
-        summary: `${DEMO_NOTE} ${course.title} covers fundamental concepts and practical applications in the field.`,
-        keyTopics: ['Core concepts', 'Practical applications', 'Assessment strategies'],
-        tips: ['Review materials regularly', 'Complete assignments on time', 'Participate in discussions'],
+        summary: `${demo.note} ${course.title} ${demo.courseSummary}`,
+        keyTopics: demo.courseTopics,
+        tips: demo.courseTips,
         workload: 'moderate' as const,
       };
     }
@@ -222,6 +302,7 @@ Provide a helpful course overview as JSON:
   }
 
   async getStudentAnalysis(dto: StudentAnalysisDto, userId: string, userRole: string) {
+    const demo = this.demoText(dto.lang);
     if (userRole === 'STUDENT' && dto.studentId !== userId) {
       throw new ForbiddenException('Students can only view their own analysis');
     }
@@ -246,10 +327,10 @@ Provide a helpful course overview as JSON:
     if (this.isDemo) {
       return {
         _demo: true,
-        analysis: `${DEMO_NOTE} ${student.fullName} shows consistent engagement with course materials and submits work on time.`,
-        strengths: ['Consistent assignment submission', 'Good attendance record'],
-        areasToImprove: ['Could improve grade scores', 'More active participation recommended'],
-        recommendations: ['Schedule office hours with instructor', 'Form study groups with peers', 'Review feedback on past assignments'],
+        analysis: `${demo.note} ${student.fullName} ${demo.analysis}`,
+        strengths: demo.analysisStrengths,
+        areasToImprove: demo.analysisImprovements,
+        recommendations: demo.analysisRecommendations,
         riskLevel: 'low' as const,
       };
     }
@@ -301,9 +382,10 @@ Provide analysis as JSON:
     return result;
   }
 
-  async *chatStream(message: string, userId: string, context?: string): AsyncGenerator<string> {
+  async *chatStream(message: string, userId: string, context?: string, lang?: string): AsyncGenerator<string> {
     if (this.isDemo) {
-      const demoMsg = `[Demo mode] ${DEMO_NOTE} You asked: "${message}". In a real deployment, I would provide a detailed academic response here.`;
+      const demo = this.demoText(lang);
+      const demoMsg = `${demo.chatIntro} ${demo.note} ${demo.chatYouAsked} "${message}". ${demo.chatReply}`;
       for (const word of demoMsg.split(' ')) {
         yield word + ' ';
       }

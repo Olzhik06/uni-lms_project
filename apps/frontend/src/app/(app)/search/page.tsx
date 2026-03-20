@@ -31,6 +31,11 @@ export default function SearchPage() {
 
   const total = (data?.courses.length || 0) + (data?.materials.length || 0) +
     (data?.assignments.length || 0) + (data?.announcements?.length || 0) + (data?.users?.length || 0);
+  const roleLabel = {
+    ADMIN: t.adminCrud.userRoleAdmin,
+    TEACHER: t.adminCrud.userRoleTeacher,
+    STUDENT: t.adminCrud.userRoleStudent,
+  };
 
   return (
     <div className="space-y-6">
@@ -87,7 +92,13 @@ export default function SearchPage() {
                         <p className="text-sm font-medium">{m.title}</p>
                         <p className="text-xs text-muted-foreground">{m.course?.code} · {m.course?.title}</p>
                       </div>
-                      <Badge variant="outline">{m.type}</Badge>
+                      <Badge variant="outline">
+                        {m.type === 'link'
+                          ? t.courseMaterials.linkType
+                          : m.type === 'file'
+                            ? t.courseMaterials.fileType
+                            : t.courseMaterials.textType}
+                      </Badge>
                     </CardContent>
                   </Card>
                 </Link>
@@ -105,7 +116,7 @@ export default function SearchPage() {
                     <CardContent className="p-3 flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{a.title}</p>
-                        <p className="text-xs text-muted-foreground">{a.course?.code} · Due {formatDate(a.dueAt)}</p>
+                        <p className="text-xs text-muted-foreground">{a.course?.code} · {t.common.due} {formatDate(a.dueAt)}</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -152,7 +163,7 @@ export default function SearchPage() {
                         <p className="text-sm font-medium">{u.fullName}</p>
                         <p className="text-xs text-muted-foreground">{u.email}</p>
                       </div>
-                      <Badge variant="outline" className="text-[10px]">{u.role}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{roleLabel[u.role]}</Badge>
                     </CardContent>
                   </Card>
                 </Link>

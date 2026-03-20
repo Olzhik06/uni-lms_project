@@ -12,12 +12,15 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { Sparkles, CheckCircle2, XCircle, RotateCcw, Trophy, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage, useT } from '@/lib/i18n';
 
 type QuizMode = 'config' | 'quiz' | 'results';
 
 export default function QuizPage() {
   const { id } = useParams<{ id: string }>();
   const { data: user } = useMe();
+  const t = useT();
+  const { lang } = useLanguage();
 
   // Config
   const [topic, setTopic] = useState('');
@@ -33,10 +36,15 @@ export default function QuizPage() {
   const [showExplanation, setShowExplanation] = useState(false);
 
   const isTeacher = user?.role === 'TEACHER' || user?.role === 'ADMIN';
+  const difficultyLabel = {
+    easy: t.courseQuiz.easy,
+    medium: t.courseQuiz.medium,
+    hard: t.courseQuiz.hard,
+  };
 
   const handleGenerate = async () => {
     if (!topic.trim()) {
-      toast({ title: 'Enter a topic', variant: 'destructive' });
+      toast({ title: t.courseQuiz.enterTopic, variant: 'destructive' });
       return;
     }
     setLoading(true);
@@ -46,6 +54,7 @@ export default function QuizPage() {
         topic,
         questionCount: parseInt(count),
         difficulty,
+        lang,
       });
       setQuiz(result);
       setAnswers({});
@@ -53,7 +62,7 @@ export default function QuizPage() {
       setShowExplanation(false);
       setMode('quiz');
     } catch (e: any) {
-      toast({ title: 'Failed to generate quiz', description: e.message, variant: 'destructive' });
+      toast({ title: t.courseQuiz.failedGenerate, description: e.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -94,21 +103,21 @@ export default function QuizPage() {
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Brain className="h-5 w-5 text-purple-600" />
-            AI Quiz Generator
+            {t.courseQuiz.title}
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
             {isTeacher
-              ? 'Generate a quiz to use in class or share with students'
-              : 'Test your knowledge with an AI-generated quiz'}
+              ? t.courseQuiz.teacherSubtitle
+              : t.courseQuiz.studentSubtitle}
           </p>
         </div>
 
         <Card>
           <CardContent className="pt-5 space-y-4">
             <div>
-              <Label>Topic</Label>
+              <Label>{t.courseQuiz.topic}</Label>
               <Input
-                placeholder="e.g. SQL JOINs, Normalization, Transactions..."
+                placeholder={t.courseQuiz.topicPlaceholder}
                 value={topic}
                 onChange={e => setTopic(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleGenerate()}
@@ -117,19 +126,19 @@ export default function QuizPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Questions</Label>
+                <Label>{t.courseQuiz.questions}</Label>
                 <Select value={count} onChange={e => setCount(e.target.value)}>
                   {[3, 5, 8, 10, 15].map(n => (
-                    <option key={n} value={String(n)}>{n} questions</option>
+                    <option key={n} value={String(n)}>{n} {t.courseQuiz.questionsSuffix}</option>
                   ))}
                 </Select>
               </div>
               <div>
-                <Label>Difficulty</Label>
+                <Label>{t.courseQuiz.difficulty}</Label>
                 <Select value={difficulty} onChange={e => setDifficulty(e.target.value)}>
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
+                  <option value="easy">{t.courseQuiz.easy}</option>
+                  <option value="medium">{t.courseQuiz.medium}</option>
+                  <option value="hard">{t.courseQuiz.hard}</option>
                 </Select>
               </div>
             </div>
@@ -142,12 +151,12 @@ export default function QuizPage() {
               {loading ? (
                 <>
                   <div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                  Generating...
+                  {t.courseQuiz.generating}
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />
-                  Generate Quiz
+                  {t.courseQuiz.generateQuiz}
                 </>
               )}
             </Button>
@@ -165,7 +174,7 @@ export default function QuizPage() {
             <Trophy className={cn('h-12 w-12 mx-auto', pct >= 70 ? 'text-yellow-500' : 'text-muted-foreground')} />
             <h2 className="text-2xl font-bold">{pct}%</h2>
             <p className="text-muted-foreground">
-              {score} out of {quiz!.questions.length} correct
+              {score} {t.courseQuiz.of} {quiz!.questions.length} {t.courseQuiz.correctCount}
             </p>
             <Badge className={cn(
               'text-sm px-3 py-1',
@@ -173,7 +182,7 @@ export default function QuizPage() {
               pct >= 60 ? 'bg-yellow-100 text-yellow-800' :
               'bg-red-100 text-red-800'
             )}>
-              {pct >= 80 ? 'Excellent!' : pct >= 60 ? 'Good effort' : 'Keep studying'}
+              {pct >= 80 ? t.courseQuiz.excellent : pct >= 60 ? t.courseQuiz.goodEffort : t.courseQuiz.keepStudying}
             </Badge>
           </CardContent>
         </Card>
@@ -191,11 +200,11 @@ export default function QuizPage() {
                     <div>
                       <p className="text-sm font-medium">{q.question}</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Correct: <span className="font-medium text-green-700">{q.options[q.correctIndex]}</span>
+                        {t.courseQuiz.correctAnswer}: <span className="font-medium text-green-700">{q.options[q.correctIndex]}</span>
                       </p>
                       {!correct && (
                         <p className="text-xs text-red-600 mt-0.5">
-                          Your answer: {q.options[answers[i]]}
+                          {t.courseQuiz.yourAnswer}: {q.options[answers[i]]}
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground mt-1 italic">{q.explanation}</p>
@@ -208,7 +217,7 @@ export default function QuizPage() {
         </div>
 
         <Button variant="outline" className="w-full gap-2" onClick={handleReset}>
-          <RotateCcw className="h-4 w-4" /> New Quiz
+          <RotateCcw className="h-4 w-4" /> {t.courseQuiz.newQuiz}
         </Button>
       </div>
     );
@@ -223,8 +232,8 @@ export default function QuizPage() {
     <div className="mt-4 max-w-lg space-y-4">
       {/* Progress */}
       <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Question {current + 1} of {quiz!.questions.length}</span>
-        <Badge variant="outline" className="capitalize">{difficulty}</Badge>
+        <span className="text-muted-foreground">{t.courseQuiz.questionProgress} {current + 1} {t.courseQuiz.of} {quiz!.questions.length}</span>
+        <Badge variant="outline" className="capitalize">{difficultyLabel[difficulty as keyof typeof difficultyLabel] ?? difficulty}</Badge>
       </div>
       <div className="h-1.5 bg-muted rounded-full overflow-hidden">
         <div
@@ -272,7 +281,7 @@ export default function QuizPage() {
       {showExplanation && (
         <Card className={cn('border', isCorrect ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50')}>
           <CardContent className="py-3 text-sm">
-            <p className="font-medium mb-1">{isCorrect ? '✓ Correct!' : '✗ Incorrect'}</p>
+            <p className="font-medium mb-1">{isCorrect ? `✓ ${t.courseQuiz.correct}` : `✗ ${t.courseQuiz.incorrect}`}</p>
             <p className="text-muted-foreground">{q.explanation}</p>
           </CardContent>
         </Card>
@@ -280,7 +289,7 @@ export default function QuizPage() {
 
       {answered && (
         <Button className="w-full" onClick={handleNext}>
-          {current + 1 >= quiz!.questions.length ? 'See Results' : 'Next Question →'}
+          {current + 1 >= quiz!.questions.length ? t.courseQuiz.seeResults : `${t.courseQuiz.nextQuestion} ->`}
         </Button>
       )}
     </div>

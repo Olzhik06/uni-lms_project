@@ -6,4 +6,73 @@ import type { Enrollment } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/form-elements';
-export default function ParticipantsPage(){const{id}=useParams<{id:string}>();const{data:parts,isLoading}=useQuery<Enrollment[]>({queryKey:['c-parts',id],queryFn:()=>api.get(`/courses/${id}/participants`)});const teachers=(parts||[]).filter(p=>p.roleInCourse==='TEACHER');const students=(parts||[]).filter(p=>p.roleInCourse==='STUDENT');return(<div className="space-y-4 mt-4"><h2 className="text-lg font-semibold">Participants ({parts?.length||0})</h2>{isLoading?<div className="space-y-3">{[1,2,3].map(i=><Skeleton key={i} className="h-14 w-full"/>)}</div>:<>{teachers.length>0&&<div><h3 className="text-sm font-semibold text-muted-foreground mb-2">Instructors</h3><div className="space-y-2">{teachers.map(p=>(<Card key={p.id}><CardContent className="py-3 flex items-center gap-3"><div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">{p.user?.fullName?.charAt(0)}</div><div className="flex-1"><p className="text-sm font-medium">{p.user?.fullName}</p><p className="text-xs text-muted-foreground">{p.user?.email}</p></div><Badge>Teacher</Badge></CardContent></Card>))}</div></div>}<div><h3 className="text-sm font-semibold text-muted-foreground mb-2">Students ({students.length})</h3><div className="space-y-2">{students.length===0?<p className="text-sm text-muted-foreground text-center py-4">No students</p>:students.map(p=>(<Card key={p.id}><CardContent className="py-3 flex items-center gap-3"><div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-sm font-semibold">{p.user?.fullName?.charAt(0)}</div><div className="flex-1"><p className="text-sm font-medium">{p.user?.fullName}</p><p className="text-xs text-muted-foreground">{p.user?.email}</p></div></CardContent></Card>))}</div></div></>}</div>);}
+import { useT } from '@/lib/i18n';
+
+export default function ParticipantsPage() {
+  const { id } = useParams<{ id: string }>();
+  const t = useT();
+  const { data: parts, isLoading } = useQuery<Enrollment[]>({
+    queryKey: ['c-parts', id],
+    queryFn: () => api.get(`/courses/${id}/participants`),
+  });
+
+  const teachers = (parts || []).filter(p => p.roleInCourse === 'TEACHER');
+  const students = (parts || []).filter(p => p.roleInCourse === 'STUDENT');
+
+  return (
+    <div className="space-y-4 mt-4">
+      <h2 className="text-lg font-semibold">{t.courseParticipants.title} ({parts?.length || 0})</h2>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}
+        </div>
+      ) : (
+        <>
+          {teachers.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t.courseParticipants.instructors}</h3>
+              <div className="space-y-2">
+                {teachers.map(p => (
+                  <Card key={p.id}>
+                    <CardContent className="py-3 flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+                        {p.user?.fullName?.charAt(0)}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{p.user?.fullName}</p>
+                        <p className="text-xs text-muted-foreground">{p.user?.email}</p>
+                      </div>
+                      <Badge>{t.courseParticipants.teacher}</Badge>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t.courseParticipants.students} ({students.length})</h3>
+            <div className="space-y-2">
+              {students.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">{t.courseParticipants.noStudents}</p>
+              ) : students.map(p => (
+                <Card key={p.id}>
+                  <CardContent className="py-3 flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-sm font-semibold">
+                      {p.user?.fullName?.charAt(0)}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{p.user?.fullName}</p>
+                      <p className="text-xs text-muted-foreground">{p.user?.email}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

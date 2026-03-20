@@ -8,11 +8,13 @@ import { Loader2 } from 'lucide-react';
 import { AiChat } from '@/components/ai-chat';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fadeUp } from '@/lib/motion';
+import { useNotificationsStream } from '@/hooks/use-notifications-stream';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading, isError } = useMe();
   const router = useRouter();
   const pathname = usePathname();
+  useNotificationsStream(!!user);
 
   useEffect(() => {
     if (!isLoading && (isError || !user)) router.push('/login');

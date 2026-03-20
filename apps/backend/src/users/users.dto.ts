@@ -16,3 +16,13 @@ export class UpdateUserDto {
   @ApiPropertyOptional() @IsString() @IsOptional() groupId?: string;
   @ApiPropertyOptional() @IsString() @MinLength(6) @IsOptional() password?: string;
 }
+
+export class UpdateMeDto {
+  @ApiPropertyOptional() @IsEmail() @IsOptional() email?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() fullName?: string;
+}
+
+export class ChangePasswordDto {
+  @ApiProperty() @IsString() @MinLength(6) currentPassword: string;
+  @ApiProperty() @IsString() @MinLength(6) newPassword: string;
+}
