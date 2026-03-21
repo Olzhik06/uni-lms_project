@@ -3,14 +3,13 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useMe } from '@/hooks/use-auth';
-import type { Course, CourseProgress } from '@/lib/types';
+import type { Course, CourseProgress, PaginatedResponse } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/form-elements';
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { Users, FileText, BookOpen } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { stagger, item } from '@/lib/motion';
 import { useT } from '@/lib/i18n';
@@ -45,10 +44,11 @@ export default function CoursesPage() {
   const t = useT();
   const [page, setPage] = useState(1);
   const pageSize = 6;
-  const { data: courses, isLoading } = useQuery<Course[]>({
+  const { data, isLoading } = useQuery<PaginatedResponse<Course>>({
     queryKey: ['courses', page],
     queryFn: () => api.get(`/courses?page=${page}&limit=${pageSize}`),
   });
+  const courses = data?.items || [];
   const isStudent = user?.role === 'STUDENT';
 
   return (
@@ -63,19 +63,34 @@ export default function CoursesPage() {
           {[1, 2, 3].map(i => <Skeleton key={i} className="h-44 w-full rounded-lg" />)}
         </div>
       ) : !courses?.length ? (
-        /* Empty state with image */
-        <div className="text-center py-20">
-          <div className="relative w-48 h-32 mx-auto mb-6 rounded-lg overflow-hidden opacity-40">
-            <Image
-              src="https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&q=80&auto=format&fit=crop"
-              alt=""
-              fill
-              className="object-cover"
-            />
+        <div className="flex flex-col items-center py-16 text-center gap-4">
+          <div className="h-16 w-16 rounded-2xl bg-muted dark:bg-white/[0.04] flex items-center justify-center">
+            <BookOpen className="h-8 w-8 text-muted-foreground/30" />
           </div>
-          <BookOpen className="h-8 w-8 mx-auto mb-3 text-muted-foreground/40" />
-          <p className="text-muted-foreground text-sm">{t.courses.notFound}</p>
-          <p className="text-muted-foreground/60 text-xs mt-1">{t.courses.notEnrolled}</p>
+          <div>
+            <p className="font-serif font-semibold text-lg text-foreground">{t.courses.notFound}</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+              {user?.role === 'STUDENT'
+                ? 'You haven\'t been enrolled in any courses yet. Contact your instructor or administrator.'
+                : user?.role === 'TEACHER'
+                ? 'You haven\'t been assigned to any courses yet. Ask your administrator to add you as a course instructor.'
+                : 'No courses have been created yet. Add the first course to get started.'}
+            </p>
+          </div>
+          {user?.role === 'ADMIN' && (
+            <Link
+              href="/admin/courses"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Create first course
+            </Link>
+          )}
+          {user?.role !== 'ADMIN' && (
+            <Link href="/search" className="text-sm text-primary hover:underline">
+              Search for courses →
+            </Link>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
@@ -127,7 +142,8 @@ export default function CoursesPage() {
           <PaginationControls
             page={page}
             itemsCount={courses.length}
-            pageSize={pageSize}
+            totalItems={data?.total}
+            hasNext={data?.hasNext ?? false}
             isLoading={isLoading}
             onPrevious={() => setPage(current => Math.max(1, current - 1))}
             onNext={() => setPage(current => current + 1)}

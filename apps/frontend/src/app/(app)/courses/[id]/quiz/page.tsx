@@ -162,6 +162,33 @@ export default function QuizPage() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Topic suggestions */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60 mb-2.5">
+            Suggested topics
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              'SQL Joins & Aggregation',
+              'Entity-Relationship Diagrams',
+              'Normalization (1NF–3NF)',
+              'Indexing & Query Optimization',
+              'Transactions & ACID',
+              'NoSQL vs Relational',
+            ].map(suggestion => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => setTopic(suggestion)}
+                className="flex items-center gap-1.5 rounded-full border border-border/50 dark:border-white/[0.1] bg-background dark:bg-white/[0.03] hover:bg-muted/60 hover:border-primary/40 dark:hover:bg-white/[0.06] dark:hover:border-primary/30 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors duration-150"
+              >
+                <Sparkles className="h-3 w-3 text-purple-400 shrink-0" />
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

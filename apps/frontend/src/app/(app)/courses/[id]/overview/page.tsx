@@ -199,7 +199,29 @@ export default function OverviewPage() {
       {isLoading
         ? <div className="space-y-3">{[1, 2].map(i => <Skeleton key={i} className="h-24 w-full" />)}</div>
         : !anns?.length
-          ? <Card><CardContent className="py-8 text-center text-muted-foreground">{t.courseOverview.noAnnouncements}</CardContent></Card>
+          ? (
+            <div className="flex flex-col items-center py-12 text-center gap-3">
+              <div className="h-12 w-12 rounded-2xl bg-muted dark:bg-white/[0.04] flex items-center justify-center">
+                <MessageSquare className="h-6 w-6 text-muted-foreground/30" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground/70">{t.courseOverview.noAnnouncements}</p>
+                <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                  {canPost
+                    ? 'Post the first update to keep your students informed.'
+                    : 'Your instructor hasn\'t posted any updates yet. Check back later.'}
+                </p>
+              </div>
+              {canPost && (
+                <button
+                  onClick={() => setShow(true)}
+                  className="text-xs text-primary hover:underline mt-1"
+                >
+                  Post the first announcement →
+                </button>
+              )}
+            </div>
+          )
           : <div className="space-y-3">
               {anns.map(a => (
                 (() => {

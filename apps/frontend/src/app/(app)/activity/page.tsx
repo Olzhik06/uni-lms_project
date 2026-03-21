@@ -4,19 +4,59 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useMe } from '@/hooks/use-auth';
 import type { ActivityLog } from '@/lib/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Select, Skeleton } from '@/components/ui/form-elements';
-import { Activity, Award, BookOpen, FileText, Layers3, User } from 'lucide-react';
-import { formatDateTime } from '@/lib/utils';
+import {
+  Activity, Award, BookOpen, FileText, FilePlus, Layers3, User,
+  PenSquare, Trash2, Send,
+} from 'lucide-react';
+import { cn, formatDateTime } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
+import { motion } from 'framer-motion';
 
-const ACTION_COLORS: Record<string, string> = {
-  CREATE: 'bg-blue-100 text-blue-700',
-  SUBMIT: 'bg-amber-100 text-amber-700',
-  GRADE: 'bg-green-100 text-green-700',
-  DELETE: 'bg-red-100 text-red-700',
-  UPDATE: 'bg-purple-100 text-purple-700',
+// ─── Config ───────────────────────────────────────────────────────────────────
+
+const ACTION_CONFIG: Record<string, {
+  label: string;
+  node: string;        // node bg + border
+  badge: string;       // pill bg + text (light)
+  badgeDark: string;   // pill bg + text (dark)
+  icon: React.ComponentType<{ className?: string }>;
+}> = {
+  CREATE: {
+    label: 'Created',
+    node: 'bg-blue-500 border-blue-500',
+    badge: 'bg-blue-50 text-blue-700 border-blue-200',
+    badgeDark: 'dark:bg-blue-500/[0.12] dark:text-blue-300 dark:border-blue-500/25',
+    icon: FilePlus,
+  },
+  SUBMIT: {
+    label: 'Submitted',
+    node: 'bg-amber-500 border-amber-500',
+    badge: 'bg-amber-50 text-amber-700 border-amber-200',
+    badgeDark: 'dark:bg-amber-500/[0.12] dark:text-amber-300 dark:border-amber-500/25',
+    icon: Send,
+  },
+  GRADE: {
+    label: 'Graded',
+    node: 'bg-emerald-500 border-emerald-500',
+    badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    badgeDark: 'dark:bg-emerald-500/[0.12] dark:text-emerald-300 dark:border-emerald-500/25',
+    icon: Award,
+  },
+  UPDATE: {
+    label: 'Updated',
+    node: 'bg-purple-500 border-purple-500',
+    badge: 'bg-purple-50 text-purple-700 border-purple-200',
+    badgeDark: 'dark:bg-purple-500/[0.12] dark:text-purple-300 dark:border-purple-500/25',
+    icon: PenSquare,
+  },
+  DELETE: {
+    label: 'Deleted',
+    node: 'bg-rose-500 border-rose-500',
+    badge: 'bg-rose-50 text-rose-700 border-rose-200',
+    badgeDark: 'dark:bg-rose-500/[0.12] dark:text-rose-300 dark:border-rose-500/25',
+    icon: Trash2,
+  },
 };
 
 const ENTITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -27,18 +67,134 @@ const ENTITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
   User: User,
 };
 
+const FALLBACK_ACTION = {
+  label: 'Action',
+  node: 'bg-muted-foreground/40 border-muted-foreground/40',
+  badge: 'bg-muted text-muted-foreground border-border',
+  badgeDark: 'dark:bg-white/[0.06] dark:text-foreground/70 dark:border-white/[0.1]',
+  icon: Activity,
+};
+
 type ActionFilter = 'ALL' | 'CREATE' | 'SUBMIT' | 'GRADE' | 'UPDATE' | 'DELETE';
 
-function SummaryCard({ label, value }: { label: string; value: number }) {
+// ─── Stat pill ────────────────────────────────────────────────────────────────
+
+function StatPill({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <p className="mt-1 text-2xl font-semibold">{value}</p>
-      </CardContent>
-    </Card>
+    <div className={cn(
+      'flex flex-col items-center rounded-xl border px-5 py-3.5 min-w-[80px]',
+      'bg-background dark:bg-card/80 dark:backdrop-blur-sm',
+      'border-border/50 dark:border-white/[0.07]',
+      'shadow-card hover:shadow-lift transition-shadow duration-150',
+    )}>
+      <span className={cn('text-2xl font-bold tabular-nums', color)}>{value}</span>
+      <span className="text-[11px] text-muted-foreground mt-0.5 whitespace-nowrap">{label}</span>
+    </div>
   );
 }
+
+// ─── Timeline entry ───────────────────────────────────────────────────────────
+
+function TimelineEntry({
+  log, isFirst, isLast, showUser,
+}: {
+  log: ActivityLog;
+  isFirst: boolean;
+  isLast: boolean;
+  showUser: boolean;
+}) {
+  const cfg = ACTION_CONFIG[log.action] ?? FALLBACK_ACTION;
+  const ActionIcon = cfg.icon;
+  const EntityIcon = ENTITY_ICONS[log.entity] ?? FileText;
+
+  return (
+    <motion.div
+      variants={{
+        hidden: { opacity: 0, x: -8 },
+        visible: { opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } },
+      }}
+      className="flex gap-4 group"
+    >
+      {/* Track */}
+      <div className="flex flex-col items-center shrink-0 w-5">
+        {/* Top line */}
+        <div className={cn('w-px', isFirst ? 'h-2 opacity-0' : 'h-3 bg-border/50 dark:bg-white/[0.08]')} />
+        {/* Node */}
+        <div className={cn(
+          'relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+          'ring-2 ring-background dark:ring-card',
+          cfg.node,
+        )}>
+          <ActionIcon className="h-2.5 w-2.5 text-white" />
+        </div>
+        {/* Bottom line */}
+        {!isLast && <div className="flex-1 w-px min-h-[2rem] bg-border/50 dark:bg-white/[0.08]" />}
+      </div>
+
+      {/* Card */}
+      <div className={cn(
+        'flex-1 min-w-0 rounded-lg border p-3.5 mb-3 last:mb-0',
+        'bg-background dark:bg-card/70 dark:backdrop-blur-sm',
+        'border-border/40 dark:border-white/[0.06]',
+        'hover:border-border/80 dark:hover:border-white/[0.1] hover:shadow-card',
+        'transition-all duration-150',
+      )}>
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Action badge */}
+            <span className={cn(
+              'inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border',
+              cfg.badge, cfg.badgeDark,
+            )}>
+              <ActionIcon className="h-3 w-3" />
+              {cfg.label}
+            </span>
+            {/* Entity */}
+            <div className="flex items-center gap-1.5 text-sm text-foreground font-medium">
+              <EntityIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              {log.entity}
+            </div>
+            {/* Who (admin view) */}
+            {showUser && log.user && (
+              <span className="text-xs text-muted-foreground">
+                by <span className="font-medium text-foreground/80">{log.user.fullName}</span>
+              </span>
+            )}
+          </div>
+          <time className="text-[11px] text-muted-foreground/70 shrink-0 whitespace-nowrap">
+            {formatDateTime(log.createdAt)}
+          </time>
+        </div>
+
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Empty state ──────────────────────────────────────────────────────────────
+
+function EmptyTimeline({ isAdmin }: { isAdmin: boolean }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="flex flex-col items-center justify-center py-20 text-center"
+    >
+      <div className="h-16 w-16 rounded-2xl bg-muted dark:bg-white/[0.04] flex items-center justify-center mb-4">
+        <Activity className="h-8 w-8 text-muted-foreground/40" />
+      </div>
+      <p className="font-serif font-medium text-foreground mb-1">No activity yet</p>
+      <p className="text-sm text-muted-foreground max-w-xs">
+        {isAdmin
+          ? 'Platform events will appear here as users interact with the system.'
+          : 'Your submissions, grades, and other events will show up here.'}
+      </p>
+    </motion.div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ActivityPage() {
   const { data: me } = useMe();
@@ -52,65 +208,55 @@ export default function ActivityPage() {
     enabled: !!me,
   });
 
-  const actionLabels = {
-    CREATE: t.activity.create,
-    SUBMIT: t.activity.submit,
-    GRADE: t.activity.gradeAction,
-    UPDATE: t.activity.update,
-    DELETE: t.activity.delete,
-  };
-
-  const entityLabels = {
-    Assignment: t.activity.assignment,
-    Submission: t.activity.submission,
-    Grade: t.activity.gradeEntity,
-    Course: t.activity.course,
-    User: t.activity.userEntity,
-  };
-
   const filteredLogs = (logs || []).filter(log => actionFilter === 'ALL' || log.action === actionFilter);
+
   const counts = {
-    total: logs?.length || 0,
-    create: (logs || []).filter(log => log.action === 'CREATE').length,
-    submit: (logs || []).filter(log => log.action === 'SUBMIT').length,
-    grade: (logs || []).filter(log => log.action === 'GRADE').length,
+    total:  logs?.length || 0,
+    create: (logs || []).filter(l => l.action === 'CREATE').length,
+    submit: (logs || []).filter(l => l.action === 'SUBMIT').length,
+    grade:  (logs || []).filter(l => l.action === 'GRADE').length,
   };
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-5 max-w-2xl">
         <div className="space-y-2">
           <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-80" />
+          <Skeleton className="h-4 w-64" />
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 w-full" />)}
+        <div className="flex gap-3">
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 w-24 rounded-xl" />)}
         </div>
-        <div className="space-y-3">
-          {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-24 w-full" />)}
+        <div className="space-y-3 pl-9">
+          {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4">
+    <div className="space-y-6 max-w-2xl">
+
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <div className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            <h1 className="text-2xl font-bold">{t.activity.title}</h1>
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 dark:bg-primary/15 flex items-center justify-center">
+              <Activity className="h-4 w-4 text-primary" />
+            </div>
+            <h1 className="font-serif text-2xl font-semibold">{t.activity.title}</h1>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground ml-10.5">
             {isAdmin ? t.activity.adminSubtitle : t.activity.userSubtitle}
           </p>
         </div>
 
-        <div className="w-full max-w-xs">
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">
-            {t.activity.filterAction}
-          </label>
-          <Select value={actionFilter} onChange={e => setActionFilter(e.target.value as ActionFilter)}>
+        <div className="w-48">
+          <Select
+            value={actionFilter}
+            onChange={e => setActionFilter(e.target.value as ActionFilter)}
+            className="text-xs"
+          >
             <option value="ALL">{t.activity.allActions}</option>
             <option value="CREATE">{t.activity.create}</option>
             <option value="SUBMIT">{t.activity.submit}</option>
@@ -121,71 +267,34 @@ export default function ActivityPage() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard label={t.activity.total} value={counts.total} />
-        <SummaryCard label={t.activity.create} value={counts.create} />
-        <SummaryCard label={t.activity.submit} value={counts.submit} />
-        <SummaryCard label={t.activity.gradeAction} value={counts.grade} />
+      {/* Stat pills */}
+      <div className="flex gap-3 flex-wrap">
+        <StatPill label={t.activity.total}       value={counts.total}  color="text-foreground" />
+        <StatPill label={t.activity.create}      value={counts.create} color="text-blue-600 dark:text-blue-400" />
+        <StatPill label={t.activity.submit}      value={counts.submit} color="text-amber-600 dark:text-amber-400" />
+        <StatPill label={t.activity.gradeAction} value={counts.grade}  color="text-emerald-600 dark:text-emerald-400" />
       </div>
 
+      {/* Timeline */}
       {!filteredLogs.length ? (
-        <Card>
-          <CardContent className="py-16 text-center text-muted-foreground">
-            <Activity className="mx-auto mb-3 h-10 w-10 opacity-30" />
-            <p className="text-sm font-medium">{t.activity.noActivity}</p>
-            <p className="mx-auto mt-1 max-w-md text-xs">
-              {isAdmin ? t.activity.noActivityAdminDescription : t.activity.noActivityUserDescription}
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyTimeline isAdmin={isAdmin} />
       ) : (
-        <div className="space-y-3">
-          {filteredLogs.map(log => {
-            const Icon = ENTITY_ICONS[log.entity] || FileText;
-            const entityLabel = entityLabels[log.entity as keyof typeof entityLabels] || log.entity;
-            const actionLabel = actionLabels[log.action as keyof typeof actionLabels] || log.action;
-
-            return (
-              <Card key={log.id} className="overflow-hidden">
-                <CardHeader className="p-4 pb-3">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-                      <Icon className="h-4 w-4 text-muted-foreground" />
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge className={`text-[10px] ${ACTION_COLORS[log.action] || 'bg-gray-100 text-gray-700'}`}>
-                          {actionLabel}
-                        </Badge>
-                        <CardTitle className="text-sm">{entityLabel}</CardTitle>
-                        {isAdmin && log.user && (
-                          <CardDescription className="text-xs">
-                            {t.activity.by} {log.user.fullName}
-                          </CardDescription>
-                        )}
-                      </div>
-                      <CardDescription className="mt-1 text-xs">
-                        {formatDateTime(log.createdAt)}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-
-                {log.entityId && (
-                  <CardContent className="px-4 pb-4 pt-0">
-                    <div className="rounded-md bg-muted/60 px-3 py-2">
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                        {t.activity.itemId}
-                      </p>
-                      <p className="mt-1 truncate font-mono text-xs">{log.entityId}</p>
-                    </div>
-                  </CardContent>
-                )}
-              </Card>
-            );
-          })}
-        </div>
+        <motion.div
+          className="pl-2"
+          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.05 } } }}
+          initial="hidden"
+          animate="visible"
+        >
+          {filteredLogs.map((log, idx) => (
+            <TimelineEntry
+              key={log.id}
+              log={log}
+              isFirst={idx === 0}
+              isLast={idx === filteredLogs.length - 1}
+              showUser={isAdmin}
+            />
+          ))}
+        </motion.div>
       )}
     </div>
   );
