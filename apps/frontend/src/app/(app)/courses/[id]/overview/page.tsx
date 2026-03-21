@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { Send, MessageSquare, Sparkles, BookOpen, Lightbulb, BarChart3, FlaskConical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage, useT } from '@/lib/i18n';
+import { getAnnouncementContent } from '@/lib/announcement-content';
 
 export default function OverviewPage() {
   const { id } = useParams<{ id: string }>();
@@ -65,9 +66,9 @@ export default function OverviewPage() {
   const canPost = user?.role === 'ADMIN' || user?.role === 'TEACHER';
 
   const workloadColor = {
-    light: 'bg-green-100 text-green-800',
-    moderate: 'bg-yellow-100 text-yellow-800',
-    heavy: 'bg-red-100 text-red-800',
+    light: 'bg-green-100 text-green-800 dark:bg-green-500/[0.15] dark:text-green-300',
+    moderate: 'bg-yellow-100 text-yellow-800 dark:bg-amber-500/[0.15] dark:text-amber-300',
+    heavy: 'bg-red-100 text-red-800 dark:bg-red-500/[0.15] dark:text-red-300',
   };
   const workloadLabel = {
     light: t.courseOverview.workloadLight,
@@ -81,10 +82,11 @@ export default function OverviewPage() {
       <Card>
         <CardContent className="pt-6">
           <p className="text-sm">{course?.description || t.courseOverview.noDescription}</p>
-          <div className="mt-4 flex gap-4 text-sm text-muted-foreground">
-            <span>{t.courseOverview.instructor}: {course?.teacher?.fullName}</span>
-            <span>{(course as any)?._count?.enrollments} {t.courseOverview.enrolled}</span>
-          </div>
+          {(course as any)?._count?.enrollments != null && (
+            <div className="mt-4 text-sm text-muted-foreground">
+              <span>{(course as any)._count.enrollments} {t.courseOverview.enrolled}</span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -94,7 +96,7 @@ export default function OverviewPage() {
           <Button
             variant="outline"
             onClick={handleSummary}
-            className="gap-2 border-purple-200 text-purple-700 hover:bg-purple-50"
+            className="gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-500/30 dark:text-purple-300 dark:hover:bg-purple-500/[0.1]"
           >
             <Sparkles className="h-4 w-4" />
             {t.courseOverview.aiSummary}
@@ -102,10 +104,10 @@ export default function OverviewPage() {
         )}
 
         {summaryLoading && (
-          <Card className="border-purple-100">
+          <Card className="border-purple-100 dark:border-purple-500/20">
             <CardContent className="pt-5 space-y-3">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="h-4 w-4 rounded-full border-2 border-purple-400 border-t-transparent animate-spin" />
+                <div className="h-4 w-4 rounded-full border-2 border-purple-400 dark:border-purple-400/70 border-t-transparent animate-spin" />
                 {t.courseOverview.generatingSummary}
               </div>
               {[1, 2, 3].map(i => <Skeleton key={i} className="h-4 w-full" />)}
@@ -114,14 +116,14 @@ export default function OverviewPage() {
         )}
 
         {summary && (
-          <Card className="border-purple-100 bg-purple-50/30">
+          <Card className="border-purple-100 bg-purple-50/30 dark:border-purple-500/20 dark:bg-purple-500/[0.06]">
             <CardContent className="pt-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-sm flex items-center gap-2 text-purple-800">
+                <h3 className="font-semibold text-sm flex items-center gap-2 text-purple-800 dark:text-purple-300">
                   <Sparkles className="h-4 w-4" />
                   {t.courseOverview.aiSummary}
                   {(summary as any)._demo && (
-                    <Badge variant="outline" className="text-xs font-normal border-purple-200 text-purple-600">{t.courseOverview.demo}</Badge>
+                    <Badge variant="outline" className="text-xs font-normal border-purple-200 text-purple-600 dark:border-purple-500/30 dark:text-purple-400">{t.courseOverview.demo}</Badge>
                   )}
                 </h3>
                 <Badge className={cn('text-xs capitalize', workloadColor[summary.workload] ?? 'bg-gray-100 text-gray-700')}>
@@ -200,13 +202,18 @@ export default function OverviewPage() {
           ? <Card><CardContent className="py-8 text-center text-muted-foreground">{t.courseOverview.noAnnouncements}</CardContent></Card>
           : <div className="space-y-3">
               {anns.map(a => (
-                <Card key={a.id}>
-                  <CardContent className="pt-4">
-                    <h3 className="font-semibold">{a.title}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">{(a as any).author?.fullName} &middot; {formatDateTime(a.createdAt)}</p>
-                    <p className="text-sm mt-2 text-muted-foreground whitespace-pre-wrap">{a.body}</p>
-                  </CardContent>
-                </Card>
+                (() => {
+                  const content = getAnnouncementContent(a, lang);
+                  return (
+                    <Card key={a.id}>
+                      <CardContent className="pt-4">
+                        <h3 className="font-semibold">{content.title}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">{(a as any).author?.fullName} &middot; {formatDateTime(a.createdAt)}</p>
+                        <p className="text-sm mt-2 text-muted-foreground whitespace-pre-wrap">{content.body}</p>
+                      </CardContent>
+                    </Card>
+                  );
+                })()
               ))}
             </div>
       }

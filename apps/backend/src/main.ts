@@ -6,16 +6,26 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { join } from 'path';
 import express from 'express';
+import { verify } from 'jsonwebtoken';
 import { AppModule } from './app.module';
+import { LocalizedHttpExceptionFilter } from './common/filters/localized-http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
   app.use(cookieParser());
   app.use(helmet());
+  const JWT_SECRET = process.env.JWT_SECRET || 'change-me-super-secret-jwt-key-at-least-32-chars';
+  app.use('/uploads', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const token = req.cookies?.['access_token'] || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : undefined);
+    if (!token) return res.status(401).json({ statusCode: 401, message: 'Unauthorized' });
+    try { verify(token, JWT_SECRET); next(); }
+    catch { return res.status(401).json({ statusCode: 401, message: 'Unauthorized' }); }
+  });
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
   app.enableCors({ origin: true, credentials: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+  app.useGlobalFilters(new LocalizedHttpExceptionFilter());
   const cfg = new DocumentBuilder()
     .setTitle('UniLMS API')
     .setDescription('Unified LMS platform API')
