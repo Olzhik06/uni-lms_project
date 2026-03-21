@@ -84,7 +84,7 @@ export default function CalendarPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{t.calendar.title}</h1>
+          <h1 className="font-serif text-2xl font-semibold">{t.calendar.title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{monthLabel}</p>
         </div>
 
@@ -107,11 +107,6 @@ export default function CalendarPage() {
             <div className="p-6">
               <Skeleton className="h-[520px] w-full" />
             </div>
-          ) : !hasAnyEvents ? (
-            <div className="py-16 text-center text-muted-foreground">
-              <CalendarDays className="mx-auto mb-3 h-10 w-10 opacity-30" />
-              <p className="text-sm font-medium">{t.calendar.noEvents}</p>
-            </div>
           ) : (
             <div>
               <div className="grid grid-cols-7 border-b">
@@ -122,7 +117,7 @@ export default function CalendarPage() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-7">
+              <div className="grid grid-cols-7">
                 {cells.map((day, index) => {
                   const dayEvents = day ? eventsForDay(day) : { scheduleItems: [], assignments: [] };
                   const extraCount = Math.max(dayEvents.scheduleItems.length + dayEvents.assignments.length - 3, 0);
@@ -130,31 +125,29 @@ export default function CalendarPage() {
                   return (
                     <div
                       key={`${monthKey}-${index}`}
-                      className={`min-h-[120px] border-b p-2 sm:border-r ${!day ? 'bg-muted/30' : ''} ${day && isToday(day) ? 'bg-primary/5' : ''}`}
+                      className={`min-h-[80px] border-b border-r p-1.5 sm:min-h-[110px] sm:p-2 ${!day ? 'bg-muted/30' : ''} ${day && isToday(day) ? 'bg-primary/5' : ''}`}
                     >
                       {!day ? null : (
                         <>
-                          <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm ${isToday(day) ? 'bg-primary font-bold text-white' : 'text-muted-foreground'}`}>
+                          <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs sm:h-7 sm:w-7 sm:text-sm ${isToday(day) ? 'bg-primary font-bold text-white' : 'text-muted-foreground'}`}>
                             {day}
                           </span>
 
-                          {dayEvents.scheduleItems.length === 0 && dayEvents.assignments.length === 0 ? (
-                            <p className="mt-3 text-[11px] text-muted-foreground">{t.calendar.noItemsForDay}</p>
-                          ) : (
-                            <div className="mt-2 space-y-1">
+                          {(dayEvents.scheduleItems.length > 0 || dayEvents.assignments.length > 0) && (
+                            <div className="mt-1 space-y-0.5 sm:mt-2 sm:space-y-1">
                               {dayEvents.scheduleItems.slice(0, 2).map(item => (
-                                <div key={item.id} className="rounded bg-blue-100 px-1.5 py-1 text-[10px] text-blue-700">
-                                  <span className="font-medium">{t.calendar.classes}:</span> {item.course?.code}
+                                <div key={item.id} className="rounded bg-blue-100 px-1 py-0.5 text-[9px] text-blue-700 dark:bg-blue-500/[0.18] dark:text-blue-300 sm:px-1.5 sm:py-1 sm:text-[10px]">
+                                  <span className="font-medium hidden sm:inline">{t.calendar.classes}: </span>{item.course?.code}
                                 </div>
                               ))}
                               {dayEvents.assignments.slice(0, 1).map(item => (
-                                <div key={item.id} className="rounded bg-red-100 px-1.5 py-1 text-[10px] text-red-700">
-                                  <span className="font-medium">{t.calendar.due}:</span> {item.title}
+                                <div key={item.id} className="rounded bg-red-100 px-1 py-0.5 text-[9px] text-red-700 dark:bg-red-500/[0.18] dark:text-red-300 sm:px-1.5 sm:py-1 sm:text-[10px] truncate">
+                                  <span className="font-medium hidden sm:inline">{t.calendar.due}: </span>{item.title}
                                 </div>
                               ))}
                               {extraCount > 0 && (
-                                <Badge variant="outline" className="mt-1 text-[10px]">
-                                  +{extraCount} {t.calendar.moreItems}
+                                <Badge variant="outline" className="mt-0.5 text-[9px] sm:mt-1 sm:text-[10px]">
+                                  +{extraCount}
                                 </Badge>
                               )}
                             </div>
@@ -165,6 +158,13 @@ export default function CalendarPage() {
                   );
                 })}
               </div>
+
+              {!hasAnyEvents && (
+                <div className="py-10 text-center text-muted-foreground">
+                  <CalendarDays className="mx-auto mb-2 h-8 w-8 opacity-25" />
+                  <p className="text-sm">{t.calendar.noEvents}</p>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
