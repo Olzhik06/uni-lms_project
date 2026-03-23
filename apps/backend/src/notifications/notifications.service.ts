@@ -2,7 +2,24 @@ import { Injectable } from '@nestjs/common';
 import { NotificationType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
-type NotificationListener = (event: { type: 'refresh'; unreadCount: number }) => void;
+const STREAM_NOTIFICATION_SELECT = {
+  id: true,
+  userId: true,
+  type: true,
+  title: true,
+  body: true,
+  link: true,
+  isRead: true,
+  createdAt: true,
+} as const;
+
+type StreamNotification = Prisma.NotificationGetPayload<{ select: typeof STREAM_NOTIFICATION_SELECT }>;
+
+type NotificationListener = (event: {
+  type: 'refresh' | 'created';
+  unreadCount: number;
+  notification?: StreamNotification;
+}) => void;
 
 @Injectable()
 export class NotificationsService {
@@ -25,8 +42,8 @@ export class NotificationsService {
   }
 
   async create(data: Prisma.NotificationUncheckedCreateInput & { type: NotificationType }) {
-    const notification = await this.db.notification.create({ data });
-    await this.emitRefresh(notification.userId);
+    const notification = await this.db.notification.create({ data, select: STREAM_NOTIFICATION_SELECT });
+    await this.emit(notification.userId, 'created', notification);
     return notification;
   }
 
@@ -34,28 +51,37 @@ export class NotificationsService {
     if (!data.length) return { count: 0 };
     const result = await this.db.notification.createMany({ data });
     const affectedUsers = [...new Set(data.map(item => item.userId))];
-    await Promise.all(affectedUsers.map(uid => this.emitRefresh(uid)));
+    await Promise.all(
+      affectedUsers.map(async uid => {
+        const notification = await this.db.notification.findFirst({
+          where: { userId: uid },
+          orderBy: { createdAt: 'desc' },
+          select: STREAM_NOTIFICATION_SELECT,
+        });
+        await this.emit(uid, 'created', notification ?? undefined);
+      }),
+    );
     return result;
   }
 
   async markRead(id: string, uid: string) {
     await this.db.notification.updateMany({ where: { id, userId: uid }, data: { isRead: true } });
-    await this.emitRefresh(uid);
+    await this.emit(uid, 'refresh');
     return { ok: true };
   }
 
   async markAllRead(uid: string) {
     await this.db.notification.updateMany({ where: { userId: uid, isRead: false }, data: { isRead: true } });
-    await this.emitRefresh(uid);
+    await this.emit(uid, 'refresh');
     return { ok: true };
   }
 
   getUnreadCount(uid: string) { return this.db.notification.count({ where: { userId: uid, isRead: false } }); }
 
-  private async emitRefresh(uid: string) {
+  private async emit(uid: string, type: 'refresh' | 'created', notification?: StreamNotification) {
     const unreadCount = await this.getUnreadCount(uid);
     for (const listener of this.listeners.get(uid) ?? []) {
-      listener({ type: 'refresh', unreadCount });
+      listener({ type, unreadCount, notification });
     }
   }
 }

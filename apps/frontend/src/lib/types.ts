@@ -3,13 +3,17 @@ export type CourseRole = 'STUDENT'|'TEACHER';
 export type ScheduleType = 'LECTURE'|'PRACTICE'|'LAB'|'EXAM';
 export type SubmissionStatus = 'DRAFT'|'SUBMITTED';
 export type NotificationType = 'ASSIGNMENT_DUE'|'ANNOUNCEMENT'|'GRADE_PUBLISHED'|'SYSTEM';
-export interface User { id:string; email:string; fullName:string; role:Role; groupId?:string|null; group?:{id?:string;name:string}|null; createdAt?:string; }
+export interface PaginatedResponse<T> { items:T[]; page:number; limit:number; total:number; hasNext:boolean; }
+export interface NotificationStreamEvent { type:'refresh'|'created'; unreadCount:number; notification?:Notification; }
+export interface User { id:string; email:string; fullName:string; role:Role; preferredLang?:'en'|'ru'|'kz'; groupId?:string|null; group?:{id?:string;name:string}|null; createdAt?:string; }
 export interface Group { id:string; name:string; degree?:string|null; year?:number|null; _count?:{users:number}; }
 export interface Course { id:string; code:string; title:string; description:string; teacherId?:string|null; semester:string; teacher?:{id:string;fullName:string;email?:string}|null; _count?:{enrollments:number;assignments:number}; roleInCourse?:CourseRole; }
 export interface Enrollment { id:string; userId:string; courseId:string; roleInCourse:CourseRole; user?:User; course?:{id:string;code:string;title:string}; }
 export interface Announcement { id:string; courseId?:string|null; authorId:string; title:string; body:string; createdAt:string; author?:{fullName:string}; course?:{id:string;code:string;title:string}|null; }
-export interface Assignment { id:string; courseId:string; title:string; description:string; dueAt:string; maxScore:number; _count?:{submissions:number}; course?:{id:string;code:string;title:string}; }
-export interface Submission { id:string; assignmentId:string; studentId:string; contentText?:string|null; contentUrl?:string|null; submittedAt?:string|null; status:SubmissionStatus; student?:User; grade?:Grade|null; }
+export interface AssignmentResource { id:string; assignmentId:string; fileUrl:string; fileName:string; fileSize:number; mimeType:string; createdAt:string; }
+export interface Assignment { id:string; courseId:string; title:string; description:string; dueAt:string; maxScore:number; _count?:{submissions:number}; course?:{id:string;code:string;title:string}; resources?:AssignmentResource[]; }
+export interface SubmissionAttachment { id:string; submissionId:string; fileUrl:string; fileName:string; fileSize:number; mimeType:string; createdAt:string; }
+export interface Submission { id:string; assignmentId:string; studentId:string; contentText?:string|null; contentUrl?:string|null; fileUrl?:string|null; submittedAt?:string|null; status:SubmissionStatus; student?:User; grade?:Grade|null; attachments?:SubmissionAttachment[]; }
 export interface Grade { id:string; submissionId:string; gradedById:string; score:number; feedback?:string|null; gradedAt:string; gradedBy?:{fullName:string}; submission?:Submission&{assignment?:Assignment&{course?:{id:string;code:string;title:string}}}; }
 export interface ScheduleItem { id:string; courseId:string; startsAt:string; endsAt:string; room:string; type:ScheduleType; course?:{id:string;code:string;title:string}; group?:{name:string}|null; }
 export interface Notification { id:string; userId:string; type:NotificationType; title:string; body?:string|null; link?:string|null; isRead:boolean; createdAt:string; }
@@ -27,17 +31,122 @@ export interface SearchResults {
   announcements:{id:string;title:string;body:string;courseId?:string|null;createdAt:string;course?:{code:string;title:string}|null}[];
   users:{id:string;fullName:string;email:string;role:Role}[];
 }
+export interface AssignmentComment { id:string; assignmentId:string; authorId:string; body:string; createdAt:string; updatedAt:string; author:{id:string;fullName:string;role:Role}; }
 // AI types
 export interface AiFeedback { assessment:string; strengths:string[]; improvements:string[]; suggestions:string[]; }
-export interface QuizQuestion { question:string; options:string[]; correctIndex:number; explanation:string; }
-export interface AiQuiz { questions:QuizQuestion[]; }
+export interface AiReviewRubricHint { criterion: string; note: string; }
+export interface AiReviewResult {
+  _demo?: boolean;
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  missingRequirements: string[];
+  suggestedScore: { min: number; max: number; reason: string };
+  rubricHints: AiReviewRubricHint[];
+  draftFeedback: string;
+  confidence: number;
+}
+// Legacy AI quiz (practice mode)
+export interface AiQuizQuestion { question:string; options:string[]; correctIndex:number; explanation:string; }
+export interface AiQuiz { questions:AiQuizQuestion[]; }
+
+// ── Quiz System ────────────────────────────────────────────────────────────
+export type QuizStatus = 'DRAFT' | 'PUBLISHED' | 'CLOSED';
+export type QuestionType = 'MCQ_SINGLE' | 'MCQ_MULTI' | 'TRUE_FALSE' | 'SHORT_ANSWER';
+
+export interface Quiz {
+  id: string;
+  courseId: string;
+  createdById: string;
+  title: string;
+  description: string;
+  status: QuizStatus;
+  timeLimitMinutes: number | null;
+  maxAttempts: number;
+  shuffleQuestions: boolean;
+  showResults: boolean;
+  availableFrom: string | null;
+  availableUntil: string | null;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { questions: number; attempts: number };
+  myAttempts?: number;
+  questions?: QuizQuestionItem[];
+}
+
+export interface QuizQuestionItem {
+  id: string;
+  quizId: string;
+  type: QuestionType;
+  body: string;
+  options: string[] | null;
+  correctOption?: number | number[] | boolean | null; // hidden from students
+  explanation?: string | null;
+  points: number;
+  orderIndex: number;
+}
+
+export interface QuizAttempt {
+  id: string;
+  quizId: string;
+  studentId: string;
+  attemptNumber: number;
+  startedAt: string;
+  submittedAt: string | null;
+  score: number | null;
+  maxScore: number | null;
+  timeTakenSeconds: number | null;
+  quiz?: Quiz;
+  answers?: QuizAnswerRecord[];
+  student?: { id: string; fullName: string; email: string };
+}
+
+export interface QuizAnswerRecord {
+  id: string;
+  attemptId: string;
+  questionId: string;
+  answer: number | number[] | boolean | string | null;
+  isCorrect: boolean | null;
+  pointsEarned: number | null;
+  teacherNote: string | null;
+  question?: QuizQuestionItem;
+}
+
+export interface QuizAnalytics {
+  totalAttempts: number;
+  avgScore: number;
+  avgPct: number;
+  questions: {
+    id: string;
+    body: string;
+    type: QuestionType;
+    correctRate: number | null;
+    totalAnswers: number;
+  }[];
+}
 export interface AiCourseSummary { summary:string; keyTopics:string[]; tips:string[]; workload:'light'|'moderate'|'heavy'; }
 export interface AiStudentAnalysis { analysis:string; strengths:string[]; areasToImprove:string[]; recommendations:string[]; riskLevel:'low'|'medium'|'high'; }
 export interface AuthResponse { accessToken:string; refreshToken:string; user:User; }
 export interface CalendarData { scheduleItems:ScheduleItem[]; assignments:Assignment[]; }
 // Feature 3 — Gradebook
-export interface GradeStats { assignments:{assignmentId:string;title:string;maxScore:number;submissionsCount:number;gradedCount:number;averageScore:number|null;minScore:number|null}[]; courseAverage:number|null; }
+export interface GradeStats { assignments:{assignmentId:string;title:string;maxScore:number;categoryId?:string|null;category?:GradeCategory|null;submissionsCount:number;gradedCount:number;averageScore:number|null;minScore:number|null}[]; courseAverage:number|null; }
 export interface GradeSummary { course:{id:string;code:string;title:string}|null; gradesCount:number; totalEarned:number; totalPossible:number; percentage:number; }
+
+// Weighted Gradebook
+export interface GradeCategory { id:string; courseId:string; name:string; weight:number; color:string; createdAt:string; updatedAt:string; _count?:{assignments:number;quizzes:number}; }
+export interface CategoryBreakdown { categoryId:string; name:string; weight:number; color:string; earned:number|null; possible:number|null; percentage:number|null; items:number; }
+export interface StudentGradebookRow { student:{id:string;fullName:string;email:string}; categoryBreakdown:CategoryBreakdown[]; finalPct:number|null; letterGrade:string|null; }
+export interface WeightedGradebook { categories:GradeCategory[]; students:StudentGradebookRow[]; totalWeight:number; }
+export interface MyWeightedGrade { categories:GradeCategory[]; totalWeight:number; student?:{id:string;fullName:string;email:string}; categoryBreakdown:CategoryBreakdown[]; finalPct:number|null; letterGrade:string|null; }
 // Feature 2 — Attendance stats
 export interface AttendanceStats { total:number; present:number; late:number; absent:number; presentRate:number; lateRate:number; absentRate:number; }
 export interface StudentAttendanceStat { student:{id:string;fullName:string;email?:string}; total:number; present:number; late:number; absent:number; presentRate:number; }
+
+// ── Rubrics ───────────────────────────────────────────────────────────────────
+export interface RubricLevel { id:string; criterionId:string; title:string; description:string; points:number; orderIndex:number; }
+export interface RubricCriterion { id:string; rubricId:string; title:string; description:string; points:number; orderIndex:number; levels:RubricLevel[]; }
+export interface Rubric { id:string; assignmentId:string; title:string; createdById:string; createdAt:string; updatedAt:string; criteria:RubricCriterion[]; }
+export interface RubricCriterionScore { id:string; evaluationId:string; criterionId:string; levelId:string; comment?:string|null; criterion:RubricCriterion; level:RubricLevel; }
+export interface RubricEvaluation { id:string; rubricId:string; submissionId:string; totalScore:number; evaluatedById:string; evaluatedBy?:{fullName:string}; createdAt:string; updatedAt:string; criterionScores:RubricCriterionScore[]; rubric:Rubric; }
+export interface ForumThread { id:string; courseId:string; authorId:string; title:string; body:string; isPinned:boolean; createdAt:string; updatedAt:string; author:{id:string;fullName:string;role:Role}; _count?:{posts:number}; }
+export interface ForumPost { id:string; threadId:string; authorId:string; body:string; createdAt:string; updatedAt:string; author:{id:string;fullName:string;role:Role}; }

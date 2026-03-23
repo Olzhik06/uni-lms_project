@@ -6,8 +6,10 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Response } from 'express';
 import { AiService } from './ai.service';
-import { AssignmentFeedbackDto, GenerateQuizDto, CourseSummaryDto, StudentAnalysisDto, ChatMessageDto } from './ai.dto';
+import { AssignmentFeedbackDto, GenerateQuizDto, CourseSummaryDto, StudentAnalysisDto, ChatMessageDto, ReviewSubmissionDto } from './ai.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { Role } from '@prisma/client';
 
 @ApiTags('AI')
@@ -53,6 +55,18 @@ export class AiController {
   @ApiResponse({ status: 403, description: 'Student accessing another student\'s analysis' })
   studentAnalysis(@Body() dto: StudentAnalysisDto, @CurrentUser() user: any) {
     return this.svc.getStudentAnalysis(dto, user.id, user.role);
+  }
+
+  @Post('review-submission')
+  @HttpCode(200)
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.TEACHER)
+  @ApiOperation({ summary: 'AI structured review of a student submission — summary, strengths, weaknesses, score range, rubric hints, draft feedback (teacher/admin only)' })
+  @ApiResponse({ status: 200, description: 'Structured AI review. _demo:true when no LLM key.' })
+  @ApiResponse({ status: 403, description: 'Students cannot request AI reviews' })
+  @ApiResponse({ status: 404, description: 'Submission not found' })
+  reviewSubmission(@Body() dto: ReviewSubmissionDto, @CurrentUser() user: any) {
+    return this.svc.reviewSubmission(dto.submissionId, user.id);
   }
 
   @Post('chat')

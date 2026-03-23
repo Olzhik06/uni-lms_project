@@ -1,10 +1,18 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { usePathname } from 'next/navigation';
+import { toast } from '@/hooks/use-toast';
+import { useLanguage } from '@/lib/i18n';
+import { getNotificationContent } from '@/lib/notification-content';
+import type { Notification, NotificationStreamEvent } from '@/lib/types';
 
 export function useNotificationsStream(enabled: boolean) {
   const qc = useQueryClient();
+  const pathname = usePathname();
+  const { t } = useLanguage();
+  const toastedIds = useRef(new Set<string>());
 
   useEffect(() => {
     if (!enabled) return;
@@ -13,9 +21,37 @@ export function useNotificationsStream(enabled: boolean) {
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let disposed = false;
 
+    const mergeNotification = (notification: Notification) => {
+      const merge = (current: Notification[] | undefined) => {
+        const existing = current ?? [];
+        const next = [notification, ...existing.filter(item => item.id !== notification.id)];
+        return next.slice(0, 50);
+      };
+
+      qc.setQueryData(['notifications'], merge);
+      qc.setQueryData(['notifs'], merge);
+    };
+
     const refreshNotifications = () => {
       qc.invalidateQueries({ queryKey: ['notifications'] });
       qc.invalidateQueries({ queryKey: ['notifs'] });
+    };
+
+    const showToastForNotification = (notification: Notification) => {
+      if (pathname === '/notifications') return;
+      if (toastedIds.current.has(notification.id)) return;
+
+      toastedIds.current.add(notification.id);
+      if (toastedIds.current.size > 100) {
+        const first = toastedIds.current.values().next().value;
+        if (first) toastedIds.current.delete(first);
+      }
+
+      const content = getNotificationContent(notification, t);
+      toast({
+        title: content.title,
+        description: content.body,
+      });
     };
 
     const connect = () => {
@@ -23,19 +59,40 @@ export function useNotificationsStream(enabled: boolean) {
 
       source = new EventSource('/api/me/notifications/stream');
 
-      const handlePayload = (event: MessageEvent<string>) => {
+      const parsePayload = (event: MessageEvent<string>) => {
         try {
-          const payload = JSON.parse(event.data) as { unreadCount?: number };
-          if (typeof payload.unreadCount === 'number') {
-            qc.setQueryData(['nc'], payload.unreadCount);
-          }
-        } catch {}
+          return JSON.parse(event.data) as NotificationStreamEvent;
+        } catch {
+          return null;
+        }
       };
 
-      source.addEventListener('ready', handlePayload as EventListener);
-      source.addEventListener('notification', ((event: Event) => {
+      const handlePayload = (event: MessageEvent<string>) => {
+        const payload = parsePayload(event);
+        if (!payload) return null;
+
+        if (typeof payload.unreadCount === 'number') {
+          qc.setQueryData(['nc'], payload.unreadCount);
+        }
+        if (payload.notification) {
+          mergeNotification(payload.notification);
+        }
+        if (payload.type === 'created' && payload.notification) {
+          showToastForNotification(payload.notification);
+        }
+
+        return payload;
+      };
+
+      source.addEventListener('ready', ((event: Event) => {
         handlePayload(event as MessageEvent<string>);
-        refreshNotifications();
+      }) as EventListener);
+      source.addEventListener('notification', ((event: Event) => {
+        const payload = handlePayload(event as MessageEvent<string>);
+        if (!payload) return;
+        if (payload.type !== 'created' || !payload.notification) {
+          refreshNotifications();
+        }
       }) as EventListener);
 
       source.onerror = () => {
@@ -54,5 +111,5 @@ export function useNotificationsStream(enabled: boolean) {
       if (retryTimer) clearTimeout(retryTimer);
       source?.close();
     };
-  }, [enabled, qc]);
+  }, [enabled, pathname, qc, t]);
 }

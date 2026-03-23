@@ -83,7 +83,7 @@ export default function AttendancePage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['attendance', id] });
       qc.invalidateQueries({ queryKey: ['attendance-stats', id] });
-      toast({ title: `Session started — ${enrolledStudents.length} student${enrolledStudents.length !== 1 ? 's' : ''} marked Present.` });
+      toast({ title: t.courseAttendance.sessionStarted });
     },
     onError: () => toast({ title: t.common.error, variant: 'destructive' }),
   });
@@ -208,9 +208,9 @@ export default function AttendancePage() {
                   <div className="h-12 w-12 rounded-xl bg-muted dark:bg-white/[0.04] flex items-center justify-center mb-3">
                     <TrendingUp className="h-6 w-6 text-muted-foreground/30" />
                   </div>
-                  <p className="text-sm font-medium text-foreground mb-1">No data yet</p>
+                  <p className="text-sm font-medium text-foreground mb-1">{t.courseAttendance.noStatsTitle}</p>
                   <p className="text-xs text-muted-foreground max-w-xs">
-                    Your attendance statistics will appear here once your instructor starts recording sessions.
+                    {t.courseAttendance.noStatsDesc}
                   </p>
                 </motion.div>
               )}
@@ -228,9 +228,9 @@ export default function AttendancePage() {
                   <div className="h-14 w-14 rounded-2xl bg-muted dark:bg-white/[0.04] flex items-center justify-center mb-4">
                     <BarChart3 className="h-7 w-7 text-muted-foreground/30" />
                   </div>
-                  <p className="font-serif font-medium text-foreground mb-1">No attendance data yet</p>
+                  <p className="font-serif font-medium text-foreground mb-1">{t.courseAttendance.noData}</p>
                   <p className="text-sm text-muted-foreground max-w-xs">
-                    Start marking attendance in the Records tab and statistics will appear here.
+                    {t.courseAttendance.noStatsTeacherDesc}
                   </p>
                 </motion.div>
               ) : studentStats.map(s => (
@@ -274,7 +274,7 @@ export default function AttendancePage() {
                     ) : (
                       <div className="space-y-2">
                         <p className="text-xs text-muted-foreground">
-                          {enrolledStudents.length} student{enrolledStudents.length !== 1 ? 's' : ''} enrolled. Start today's session to mark attendance.
+                          {enrolledStudents.length} {t.courseAttendance.startSessionDesc}
                         </p>
                         <Button
                           size="sm"
@@ -287,7 +287,7 @@ export default function AttendancePage() {
                           ) : (
                             <PlayCircle className="h-3.5 w-3.5" />
                           )}
-                          Start Today's Session
+                          {t.courseAttendance.startSession}
                         </Button>
                       </div>
                     )}
@@ -325,12 +325,10 @@ export default function AttendancePage() {
                 <CalendarCheck className="h-7 w-7 text-muted-foreground/30" />
               </div>
               <p className="font-serif font-medium text-foreground mb-1">
-                {canMark ? 'No attendance sessions yet' : 'No attendance records'}
+                {canMark ? t.courseAttendance.noSessionsYet : t.courseAttendance.noRecordsYet}
               </p>
               <p className="text-sm text-muted-foreground max-w-xs">
-                {canMark
-                  ? 'Use the "Mark Today" card above to record your first attendance session.'
-                  : 'Your instructor has not recorded any attendance yet.'}
+                {canMark ? t.courseAttendance.noSessionsDesc : t.courseAttendance.noRecordsYetDesc}
               </p>
             </motion.div>
           ) : (

@@ -172,10 +172,27 @@ pnpm dev                   # start on http://localhost:3000
 ```bash
 cd apps/backend
 pnpm install
-npx jest
+pnpm test
+# or run smoke tests with migrations first
+pnpm test:smoke
+
+# frontend smoke tests (boots backend + frontend dev servers and checks auth/routes)
+cd ../frontend
+pnpm test:smoke
 ```
 
-Covers: auth (register/login), courses (list/create), assignments (list/search/admin stats).
+`pnpm test:smoke` applies pending Prisma migrations before running the backend smoke suite. It uses the current backend `DATABASE_URL` by default, or `TEST_DATABASE_URL` if you want to point tests at a separate database.
+
+Covers: auth/profile, admin course setup, enrollments, assignments, submissions, grading, and notifications.
+
+Frontend smoke tests run through the real Next.js `/api/*` proxy and cover public auth pages, register/login/logout, `auth/me`, and key authenticated routes like dashboard, courses, profile, and notifications. By default they use `http://127.0.0.1:3000` and `http://127.0.0.1:4000`, automatically reusing already running servers when available. You can override those URLs with `SMOKE_FRONTEND_URL` and `SMOKE_BACKEND_URL`.
+
+If you already have older English notification records in the database and want to rewrite them using each user's current `preferredLang`, run:
+
+```bash
+cd apps/backend
+pnpm notifications:backfill
+```
 
 ---
 

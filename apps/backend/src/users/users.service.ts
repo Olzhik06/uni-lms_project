@@ -1,28 +1,68 @@
 import { Injectable, NotFoundException, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { getPagination, toPaginatedResult } from '../common/pagination';
 import { ChangePasswordDto, CreateUserDto, UpdateMeDto, UpdateUserDto } from './users.dto';
 
-const SEL = { id: true, email: true, fullName: true, role: true, groupId: true, createdAt: true, group: { select: { id: true, name: true } } };
+const SEL = { id: true, email: true, fullName: true, role: true, preferredLang: true, groupId: true, createdAt: true, group: { select: { id: true, name: true } } };
 
 @Injectable()
 export class UsersService {
   constructor(private db: PrismaService) {}
-  findAll(page?: number, limit?: number) {
-    const usePagination = page !== undefined || limit !== undefined;
-    const safePage = Math.max(page ?? 1, 1);
-    const safeLimit = Math.max(limit ?? 20, 1);
-
-    return this.db.user.findMany({
+  async findAll(
+    paginationInput?: { page?: number; limit?: number },
+    filters?: { search?: string; role?: Role; groupId?: string },
+  ) {
+    const pagination = getPagination(paginationInput?.page, paginationInput?.limit);
+    const search = filters?.search?.trim();
+    const where = {
+      ...(search
+        ? {
+            OR: [
+              { fullName: { contains: search, mode: 'insensitive' as const } },
+              { email: { contains: search, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+      ...(filters?.role ? { role: filters.role } : {}),
+      ...(filters?.groupId ? { groupId: filters.groupId } : {}),
+    };
+    const baseQuery = {
       select: SEL,
       orderBy: { createdAt: 'desc' },
-      ...(usePagination ? { skip: (safePage - 1) * safeLimit, take: safeLimit } : {}),
-    });
+      where,
+    } as const;
+
+    if (!pagination.usePagination) {
+      return this.db.user.findMany(baseQuery);
+    }
+
+    const [items, total] = await this.db.$transaction([
+      this.db.user.findMany({
+        ...baseQuery,
+        skip: (pagination.page - 1) * pagination.limit,
+        take: pagination.limit,
+      }),
+      this.db.user.count({ where }),
+    ]);
+
+    return toPaginatedResult(items, pagination.page, pagination.limit, total);
   }
   async findOne(id: string) { const u = await this.db.user.findUnique({ where: { id }, select: SEL }); if (!u) throw new NotFoundException(); return u; }
   async create(dto: CreateUserDto) {
-    if (await this.db.user.findUnique({ where: { email: dto.email } })) throw new ConflictException('Email in use');
-    return this.db.user.create({ data: { email: dto.email, passwordHash: await bcrypt.hash(dto.password, 10), fullName: dto.fullName, role: dto.role, groupId: dto.groupId || null }, select: SEL });
+    if (await this.db.user.findUnique({ where: { email: dto.email } })) throw new ConflictException('errors.user.emailInUse');
+    return this.db.user.create({
+      data: {
+        email: dto.email,
+        passwordHash: await bcrypt.hash(dto.password, 10),
+        fullName: dto.fullName,
+        role: dto.role,
+        groupId: dto.groupId || null,
+        ...(dto.preferredLang ? { preferredLang: dto.preferredLang } : {}),
+      },
+      select: SEL,
+    });
   }
   async update(id: string, dto: UpdateUserDto) {
     await this.findOne(id); const d: any = { ...dto };
@@ -34,13 +74,14 @@ export class UsersService {
     const existing = await this.findOne(id);
     if (dto.email && dto.email !== existing.email) {
       const sameEmail = await this.db.user.findUnique({ where: { email: dto.email } });
-      if (sameEmail && sameEmail.id !== id) throw new ConflictException('Email in use');
+      if (sameEmail && sameEmail.id !== id) throw new ConflictException('errors.user.emailInUse');
     }
     return this.db.user.update({
       where: { id },
       data: {
         ...(dto.email !== undefined ? { email: dto.email } : {}),
         ...(dto.fullName !== undefined ? { fullName: dto.fullName } : {}),
+        ...(dto.preferredLang !== undefined ? { preferredLang: dto.preferredLang } : {}),
       },
       select: SEL,
     });
@@ -52,7 +93,7 @@ export class UsersService {
     });
     if (!user) throw new NotFoundException();
     if (!user.passwordHash || !(await bcrypt.compare(dto.currentPassword, user.passwordHash))) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new UnauthorizedException('errors.user.currentPasswordIncorrect');
     }
     await this.db.user.update({
       where: { id },

@@ -1,10 +1,11 @@
 'use client';
-import { useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { Course, Enrollment, User } from '@/lib/types';
+import type { Course, Enrollment, PaginatedResponse, User } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Label, Select, Skeleton } from '@/components/ui/form-elements';
@@ -18,25 +19,43 @@ export default function AdminEnrollmentsPage() {
   const t = useT();
   const [page, setPage] = useState(1);
   const pageSize = 12;
+  const [search, setSearch] = useState('');
+  const [filterRoleInCourse, setFilterRoleInCourse] = useState('ALL');
+  const [filterUserId, setFilterUserId] = useState('ALL');
+  const [filterCourseId, setFilterCourseId] = useState('ALL');
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState('');
   const [courseId, setCourseId] = useState('');
   const [roleInCourse, setRoleInCourse] = useState('STUDENT');
+  const deferredSearch = useDeferredValue(search);
 
-  const { data: enrollments, isLoading } = useQuery<Enrollment[]>({
-    queryKey: ['a-enr', page],
-    queryFn: () => api.get(`/admin/enrollments?page=${page}&limit=${pageSize}`),
+  useEffect(() => {
+    setPage(1);
+  }, [deferredSearch, filterRoleInCourse, filterUserId, filterCourseId]);
+
+  const enrollmentsParams = new URLSearchParams({ page: String(page), limit: String(pageSize) });
+  if (deferredSearch.trim()) enrollmentsParams.set('search', deferredSearch.trim());
+  if (filterRoleInCourse !== 'ALL') enrollmentsParams.set('roleInCourse', filterRoleInCourse);
+  if (filterUserId !== 'ALL') enrollmentsParams.set('userId', filterUserId);
+  if (filterCourseId !== 'ALL') enrollmentsParams.set('courseId', filterCourseId);
+
+  const { data, isLoading } = useQuery<PaginatedResponse<Enrollment>>({
+    queryKey: ['a-enr', page, deferredSearch, filterRoleInCourse, filterUserId, filterCourseId],
+    queryFn: () => api.get(`/admin/enrollments?${enrollmentsParams.toString()}`),
   });
+  const enrollments = data?.items || [];
 
-  const { data: users } = useQuery<User[]>({
+  const { data: usersData } = useQuery<PaginatedResponse<User>>({
     queryKey: ['a-users'],
     queryFn: () => api.get('/admin/users?limit=200'),
   });
+  const users = usersData?.items || [];
 
-  const { data: courses } = useQuery<Course[]>({
+  const { data: coursesData } = useQuery<PaginatedResponse<Course>>({
     queryKey: ['courses'],
     queryFn: () => api.get('/courses?page=1&limit=200'),
   });
+  const courses = coursesData?.items || [];
 
   const createMutation = useMutation({
     mutationFn: (payload: unknown) => api.post('/admin/enrollments', payload),
@@ -68,6 +87,7 @@ export default function AdminEnrollmentsPage() {
     STUDENT: t.adminCrud.userRoleStudent,
     TEACHER: t.adminCrud.userRoleTeacher,
   };
+  const hasActiveFilters = !!deferredSearch.trim() || filterRoleInCourse !== 'ALL' || filterUserId !== 'ALL' || filterCourseId !== 'ALL';
 
   return (
     <div className="space-y-4">
@@ -79,14 +99,43 @@ export default function AdminEnrollmentsPage() {
         </Button>
       </div>
 
+      <Card>
+        <CardContent className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
+          <Label htmlFor="enrollments-search" className="sr-only">{t.common.search}</Label>
+          <Input
+            id="enrollments-search"
+            aria-label={`${t.common.search} ${t.adminCrud.enrollmentsTitle.toLowerCase()}`}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={t.adminCrud.searchPlaceholder}
+          />
+          <Label htmlFor="enrollments-role-filter" className="sr-only">{t.adminCrud.role}</Label>
+          <Select id="enrollments-role-filter" aria-label={t.adminCrud.role} value={filterRoleInCourse} onChange={e => setFilterRoleInCourse(e.target.value)}>
+            <option value="ALL">{t.adminCrud.allRoles}</option>
+            <option value="STUDENT">{t.adminCrud.userRoleStudent}</option>
+            <option value="TEACHER">{t.adminCrud.userRoleTeacher}</option>
+          </Select>
+          <Label htmlFor="enrollments-user-filter" className="sr-only">{t.adminCrud.user}</Label>
+          <Select id="enrollments-user-filter" aria-label={t.adminCrud.user} value={filterUserId} onChange={e => setFilterUserId(e.target.value)}>
+            <option value="ALL">{t.adminCrud.allUsers}</option>
+            {users?.map(user => <option key={user.id} value={user.id}>{user.fullName}</option>)}
+          </Select>
+          <Label htmlFor="enrollments-course-filter" className="sr-only">{t.adminCrud.course}</Label>
+          <Select id="enrollments-course-filter" aria-label={t.adminCrud.course} value={filterCourseId} onChange={e => setFilterCourseId(e.target.value)}>
+            <option value="ALL">{t.adminCrud.allCourses}</option>
+            {courses?.map(course => <option key={course.id} value={course.id}>{course.code} - {course.title}</option>)}
+          </Select>
+        </CardContent>
+      </Card>
+
       {isLoading ? (
         <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
       ) : !enrollments?.length ? (
         <Card>
           <CardContent className="py-16 text-center text-muted-foreground">
             <Link2Off className="mx-auto mb-3 h-10 w-10 opacity-30" />
-            <p className="text-sm font-medium">{t.adminCrud.enrollmentsEmpty}</p>
-            <p className="mx-auto mt-1 max-w-md text-xs">{t.adminCrud.enrollmentsEmptyDescription}</p>
+            <p className="text-sm font-medium">{hasActiveFilters ? t.common.noResults : t.adminCrud.enrollmentsEmpty}</p>
+            <p className="mx-auto mt-1 max-w-md text-xs">{hasActiveFilters ? t.adminCrud.filteredEmpty : t.adminCrud.enrollmentsEmptyDescription}</p>
           </CardContent>
         </Card>
       ) : (
@@ -154,6 +203,7 @@ export default function AdminEnrollmentsPage() {
                         <Button
                           size="sm"
                           variant="ghost"
+                          aria-label={`${t.adminCrud.remove}: ${enrollment.user?.fullName || enrollment.userId}`}
                           onClick={() => {
                             if (confirm(t.adminCrud.confirmRemove)) deleteMutation.mutate(enrollment.id);
                           }}
@@ -170,7 +220,8 @@ export default function AdminEnrollmentsPage() {
           <PaginationControls
             page={page}
             itemsCount={enrollments.length}
-            pageSize={pageSize}
+            totalItems={data?.total}
+            hasNext={data?.hasNext ?? false}
             isLoading={isLoading}
             onPrevious={() => setPage(current => Math.max(1, current - 1))}
             onNext={() => setPage(current => current + 1)}
@@ -184,22 +235,22 @@ export default function AdminEnrollmentsPage() {
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label>{t.adminCrud.user}</Label>
-            <Select value={userId} onChange={e => setUserId(e.target.value)}>
+            <Label htmlFor="enrollment-user">{t.adminCrud.user}</Label>
+            <Select id="enrollment-user" value={userId} onChange={e => setUserId(e.target.value)}>
               <option value="">{t.adminCrud.select}</option>
               {users?.map(user => <option key={user.id} value={user.id}>{user.fullName} ({user.email})</option>)}
             </Select>
           </div>
           <div>
-            <Label>{t.adminCrud.course}</Label>
-            <Select value={courseId} onChange={e => setCourseId(e.target.value)}>
+            <Label htmlFor="enrollment-course">{t.adminCrud.course}</Label>
+            <Select id="enrollment-course" value={courseId} onChange={e => setCourseId(e.target.value)}>
               <option value="">{t.adminCrud.select}</option>
               {courses?.map(course => <option key={course.id} value={course.id}>{course.code} - {course.title}</option>)}
             </Select>
           </div>
           <div>
-            <Label>{t.adminCrud.role}</Label>
-            <Select value={roleInCourse} onChange={e => setRoleInCourse(e.target.value)}>
+            <Label htmlFor="enrollment-role">{t.adminCrud.role}</Label>
+            <Select id="enrollment-role" value={roleInCourse} onChange={e => setRoleInCourse(e.target.value)}>
               <option value="STUDENT">{t.adminCrud.userRoleStudent}</option>
               <option value="TEACHER">{t.adminCrud.userRoleTeacher}</option>
             </Select>

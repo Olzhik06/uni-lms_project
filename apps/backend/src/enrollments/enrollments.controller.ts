@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { Role } from '@prisma/client';
+import { CourseRole, Role } from '@prisma/client';
 import { EnrollmentsService } from './enrollments.service';
 import { CreateEnrollmentDto } from './enrollments.dto';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -13,8 +13,22 @@ export class EnrollmentsController {
   @Get()
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
-    return this.svc.findAll(page ? +page : undefined, limit ? +limit : undefined);
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'roleInCourse', required: false, enum: CourseRole })
+  @ApiQuery({ name: 'courseId', required: false, type: String })
+  @ApiQuery({ name: 'userId', required: false, type: String })
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('roleInCourse') roleInCourse?: CourseRole,
+    @Query('courseId') courseId?: string,
+    @Query('userId') userId?: string,
+  ) {
+    return this.svc.findAll(
+      { page: page ? +page : undefined, limit: limit ? +limit : undefined },
+      { search, roleInCourse, courseId, userId },
+    );
   }
   @Post() create(@Body() dto: CreateEnrollmentDto) { return this.svc.create(dto); }
   @Delete(':id') remove(@Param('id') id: string) { return this.svc.remove(id); }

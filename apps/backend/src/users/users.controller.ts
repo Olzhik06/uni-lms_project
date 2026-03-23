@@ -13,8 +13,20 @@ export class UsersController {
   @Get()
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
-    return this.svc.findAll(page ? +page : undefined, limit ? +limit : undefined);
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'role', required: false, enum: Role })
+  @ApiQuery({ name: 'groupId', required: false, type: String })
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('role') role?: Role,
+    @Query('groupId') groupId?: string,
+  ) {
+    return this.svc.findAll(
+      { page: page ? +page : undefined, limit: limit ? +limit : undefined },
+      { search, role, groupId },
+    );
   }
   @Get(':id') findOne(@Param('id') id: string) { return this.svc.findOne(id); }
   @Post() create(@Body() dto: CreateUserDto) { return this.svc.create(dto); }

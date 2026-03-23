@@ -1,8 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { Group, User } from '@/lib/types';
+import type { Group, PaginatedResponse, User } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,9 @@ export default function AdminUsersPage() {
   const t = useT();
   const [page, setPage] = useState(1);
   const pageSize = 10;
+  const [search, setSearch] = useState('');
+  const [filterRole, setFilterRole] = useState('ALL');
+  const [filterGroupId, setFilterGroupId] = useState('ALL');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
   const [email, setEmail] = useState('');
@@ -26,16 +29,28 @@ export default function AdminUsersPage() {
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('STUDENT');
   const [groupId, setGroupId] = useState('');
+  const deferredSearch = useDeferredValue(search);
 
-  const { data: users, isLoading } = useQuery<User[]>({
-    queryKey: ['a-users', page],
-    queryFn: () => api.get(`/admin/users?page=${page}&limit=${pageSize}`),
+  useEffect(() => {
+    setPage(1);
+  }, [deferredSearch, filterRole, filterGroupId]);
+
+  const usersParams = new URLSearchParams({ page: String(page), limit: String(pageSize) });
+  if (deferredSearch.trim()) usersParams.set('search', deferredSearch.trim());
+  if (filterRole !== 'ALL') usersParams.set('role', filterRole);
+  if (filterGroupId !== 'ALL') usersParams.set('groupId', filterGroupId);
+
+  const { data, isLoading } = useQuery<PaginatedResponse<User>>({
+    queryKey: ['a-users', page, deferredSearch, filterRole, filterGroupId],
+    queryFn: () => api.get(`/admin/users?${usersParams.toString()}`),
   });
+  const users = data?.items || [];
 
-  const { data: groups } = useQuery<Group[]>({
+  const { data: groupsData } = useQuery<PaginatedResponse<Group>>({
     queryKey: ['a-groups'],
     queryFn: () => api.get('/admin/groups?limit=200'),
   });
+  const groups = groupsData?.items || [];
 
   const createMutation = useMutation({
     mutationFn: (payload: unknown) => api.post('/admin/users', payload),
@@ -118,6 +133,7 @@ export default function AdminUsersPage() {
     : value === 'TEACHER'
       ? 'default'
       : 'secondary';
+  const hasActiveFilters = !!deferredSearch.trim() || filterRole !== 'ALL' || filterGroupId !== 'ALL';
 
   return (
     <div className="space-y-4">
@@ -129,14 +145,39 @@ export default function AdminUsersPage() {
         </Button>
       </div>
 
+      <Card>
+        <CardContent className="grid gap-3 p-4 md:grid-cols-3">
+          <Label htmlFor="users-search" className="sr-only">{t.common.search}</Label>
+          <Input
+            id="users-search"
+            aria-label={`${t.common.search} ${t.adminCrud.usersTitle.toLowerCase()}`}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={t.adminCrud.searchPlaceholder}
+          />
+          <Label htmlFor="users-role-filter" className="sr-only">{t.adminCrud.role}</Label>
+          <Select id="users-role-filter" aria-label={t.adminCrud.role} value={filterRole} onChange={e => setFilterRole(e.target.value)}>
+            <option value="ALL">{t.adminCrud.allRoles}</option>
+            <option value="STUDENT">{t.adminCrud.userRoleStudent}</option>
+            <option value="TEACHER">{t.adminCrud.userRoleTeacher}</option>
+            <option value="ADMIN">{t.adminCrud.userRoleAdmin}</option>
+          </Select>
+          <Label htmlFor="users-group-filter" className="sr-only">{t.adminCrud.group}</Label>
+          <Select id="users-group-filter" aria-label={t.adminCrud.group} value={filterGroupId} onChange={e => setFilterGroupId(e.target.value)}>
+            <option value="ALL">{t.adminCrud.allGroups}</option>
+            {groups?.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
+          </Select>
+        </CardContent>
+      </Card>
+
       {isLoading ? (
         <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
       ) : !users?.length ? (
         <Card>
           <CardContent className="py-16 text-center text-muted-foreground">
             <Users className="mx-auto mb-3 h-10 w-10 opacity-30" />
-            <p className="text-sm font-medium">{t.adminCrud.usersEmpty}</p>
-            <p className="mx-auto mt-1 max-w-md text-xs">{t.adminCrud.usersEmptyDescription}</p>
+            <p className="text-sm font-medium">{hasActiveFilters ? t.common.noResults : t.adminCrud.usersEmpty}</p>
+            <p className="mx-auto mt-1 max-w-md text-xs">{hasActiveFilters ? t.adminCrud.filteredEmpty : t.adminCrud.usersEmptyDescription}</p>
           </CardContent>
         </Card>
       ) : (
@@ -198,12 +239,13 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="p-3 text-muted-foreground">{user.group?.name || '-'}</td>
                       <td className="p-3 text-right">
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(user)}>
+                        <Button size="sm" variant="ghost" aria-label={`${t.adminCrud.edit}: ${user.fullName}`} onClick={() => openEdit(user)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
+                          aria-label={`${t.adminCrud.remove}: ${user.fullName}`}
                           onClick={() => {
                             if (confirm(t.adminCrud.confirmDelete)) deleteMutation.mutate(user.id);
                           }}
@@ -220,7 +262,8 @@ export default function AdminUsersPage() {
           <PaginationControls
             page={page}
             itemsCount={users.length}
-            pageSize={pageSize}
+            totalItems={data?.total}
+            hasNext={data?.hasNext ?? false}
             isLoading={isLoading}
             onPrevious={() => setPage(current => Math.max(1, current - 1))}
             onNext={() => setPage(current => current + 1)}
@@ -234,31 +277,31 @@ export default function AdminUsersPage() {
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label>{t.adminCrud.fullName}</Label>
-            <Input value={fullName} onChange={e => setFullName(e.target.value)} />
+            <Label htmlFor="user-full-name">{t.adminCrud.fullName}</Label>
+            <Input id="user-full-name" value={fullName} onChange={e => setFullName(e.target.value)} />
           </div>
           <div>
-            <Label>{t.adminCrud.email}</Label>
-            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} />
+            <Label htmlFor="user-email">{t.adminCrud.email}</Label>
+            <Input id="user-email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
           </div>
           <div>
-            <Label>
+            <Label htmlFor="user-password">
               {t.adminCrud.password}
               {editing ? ` (${t.adminCrud.passwordKeep})` : ''}
             </Label>
-            <Input type="password" value={password} onChange={e => setPassword(e.target.value)} />
+            <Input id="user-password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
           </div>
           <div>
-            <Label>{t.adminCrud.role}</Label>
-            <Select value={role} onChange={e => setRole(e.target.value)}>
+            <Label htmlFor="user-role">{t.adminCrud.role}</Label>
+            <Select id="user-role" value={role} onChange={e => setRole(e.target.value)}>
               <option value="STUDENT">{t.adminCrud.userRoleStudent}</option>
               <option value="TEACHER">{t.adminCrud.userRoleTeacher}</option>
               <option value="ADMIN">{t.adminCrud.userRoleAdmin}</option>
             </Select>
           </div>
           <div>
-            <Label>{t.adminCrud.group}</Label>
-            <Select value={groupId} onChange={e => setGroupId(e.target.value)}>
+            <Label htmlFor="user-group">{t.adminCrud.group}</Label>
+            <Select id="user-group" value={groupId} onChange={e => setGroupId(e.target.value)}>
               <option value="">{t.adminCrud.none}</option>
               {groups?.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
             </Select>

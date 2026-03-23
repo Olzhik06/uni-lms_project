@@ -34,3 +34,10 @@ export class ChatMessageDto {
   @ApiPropertyOptional() @IsOptional() @IsString() context?: string;
   @ApiPropertyOptional({ enum: AI_LANGS }) @IsOptional() @IsIn(AI_LANGS) lang?: string;
 }
+
+export class ReviewSubmissionDto {
+  @ApiProperty({ description: 'ID of the submission to review' })
+  @IsString()
+  @IsNotEmpty()
+  submissionId: string;
+}

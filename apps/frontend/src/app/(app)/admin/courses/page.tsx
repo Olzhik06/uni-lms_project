@@ -1,8 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { Course, User } from '@/lib/types';
+import type { Course, PaginatedResponse, User } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,9 @@ export default function AdminCoursesPage() {
   const t = useT();
   const [page, setPage] = useState(1);
   const pageSize = 10;
+  const [search, setSearch] = useState('');
+  const [filterTeacherId, setFilterTeacherId] = useState('ALL');
+  const [filterSemester, setFilterSemester] = useState('ALL');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Course | null>(null);
   const [code, setCode] = useState('');
@@ -25,11 +28,22 @@ export default function AdminCoursesPage() {
   const [description, setDescription] = useState('');
   const [teacherId, setTeacherId] = useState('');
   const [semester, setSemester] = useState('2025-Spring');
+  const deferredSearch = useDeferredValue(search);
 
-  const { data: courses, isLoading } = useQuery<Course[]>({
-    queryKey: ['courses', 'admin', page],
-    queryFn: () => api.get(`/courses?page=${page}&limit=${pageSize}`),
+  useEffect(() => {
+    setPage(1);
+  }, [deferredSearch, filterTeacherId, filterSemester]);
+
+  const coursesParams = new URLSearchParams({ page: String(page), limit: String(pageSize) });
+  if (deferredSearch.trim()) coursesParams.set('search', deferredSearch.trim());
+  if (filterTeacherId !== 'ALL') coursesParams.set('teacherId', filterTeacherId);
+  if (filterSemester !== 'ALL') coursesParams.set('semester', filterSemester);
+
+  const { data, isLoading } = useQuery<PaginatedResponse<Course>>({
+    queryKey: ['courses', 'admin', page, deferredSearch, filterTeacherId, filterSemester],
+    queryFn: () => api.get(`/courses?${coursesParams.toString()}`),
   });
+  const courses = data?.items || [];
 
   const { data: users } = useQuery<User[]>({
     queryKey: ['a-users'],
@@ -37,6 +51,7 @@ export default function AdminCoursesPage() {
   });
 
   const teachers = users?.filter(user => user.role === 'TEACHER') || [];
+  const hasActiveFilters = !!deferredSearch.trim() || filterTeacherId !== 'ALL' || filterSemester !== 'ALL';
 
   const createMutation = useMutation({
     mutationFn: (payload: unknown) => api.post('/admin/courses', payload),
@@ -110,14 +125,40 @@ export default function AdminCoursesPage() {
         </Button>
       </div>
 
+      <Card>
+        <CardContent className="grid gap-3 p-4 md:grid-cols-3">
+          <Label htmlFor="courses-search" className="sr-only">{t.common.search}</Label>
+          <Input
+            id="courses-search"
+            aria-label={`${t.common.search} ${t.adminCrud.coursesTitle.toLowerCase()}`}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={t.adminCrud.searchPlaceholder}
+          />
+          <Label htmlFor="courses-teacher-filter" className="sr-only">{t.adminCrud.teacher}</Label>
+          <Select id="courses-teacher-filter" aria-label={t.adminCrud.teacher} value={filterTeacherId} onChange={e => setFilterTeacherId(e.target.value)}>
+            <option value="ALL">{t.adminCrud.allTeachers}</option>
+            {teachers.map(teacher => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}
+          </Select>
+          <Label htmlFor="courses-semester-filter" className="sr-only">{t.adminCrud.semester}</Label>
+          <Input
+            id="courses-semester-filter"
+            aria-label={t.adminCrud.semester}
+            value={filterSemester === 'ALL' ? '' : filterSemester}
+            onChange={e => setFilterSemester(e.target.value || 'ALL')}
+            placeholder={t.adminCrud.semester}
+          />
+        </CardContent>
+      </Card>
+
       {isLoading ? (
         <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
       ) : !courses?.length ? (
         <Card>
           <CardContent className="py-16 text-center text-muted-foreground">
             <BookOpen className="mx-auto mb-3 h-10 w-10 opacity-30" />
-            <p className="text-sm font-medium">{t.adminCrud.coursesEmpty}</p>
-            <p className="mx-auto mt-1 max-w-md text-xs">{t.adminCrud.coursesEmptyDescription}</p>
+            <p className="text-sm font-medium">{hasActiveFilters ? t.common.noResults : t.adminCrud.coursesEmpty}</p>
+            <p className="mx-auto mt-1 max-w-md text-xs">{hasActiveFilters ? t.adminCrud.filteredEmpty : t.adminCrud.coursesEmptyDescription}</p>
           </CardContent>
         </Card>
       ) : (
@@ -179,12 +220,13 @@ export default function AdminCoursesPage() {
                       <td className="p-3 text-muted-foreground">{course.teacher?.fullName || '-'}</td>
                       <td className="p-3 text-muted-foreground">{course.semester}</td>
                       <td className="p-3 text-right">
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(course)}>
+                        <Button size="sm" variant="ghost" aria-label={`${t.adminCrud.edit}: ${course.title}`} onClick={() => openEdit(course)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
+                          aria-label={`${t.adminCrud.remove}: ${course.title}`}
                           onClick={() => {
                             if (confirm(t.adminCrud.confirmDelete)) deleteMutation.mutate(course.id);
                           }}
@@ -201,7 +243,8 @@ export default function AdminCoursesPage() {
           <PaginationControls
             page={page}
             itemsCount={courses.length}
-            pageSize={pageSize}
+            totalItems={data?.total}
+            hasNext={data?.hasNext ?? false}
             isLoading={isLoading}
             onPrevious={() => setPage(current => Math.max(1, current - 1))}
             onNext={() => setPage(current => current + 1)}
@@ -216,25 +259,25 @@ export default function AdminCoursesPage() {
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <Label>{t.adminCrud.code}</Label>
-              <Input value={code} onChange={e => setCode(e.target.value)} placeholder={t.adminCrud.codePlaceholder} />
+              <Label htmlFor="course-code">{t.adminCrud.code}</Label>
+              <Input id="course-code" value={code} onChange={e => setCode(e.target.value)} placeholder={t.adminCrud.codePlaceholder} />
             </div>
             <div>
-              <Label>{t.adminCrud.semester}</Label>
-              <Input value={semester} onChange={e => setSemester(e.target.value)} />
+              <Label htmlFor="course-semester">{t.adminCrud.semester}</Label>
+              <Input id="course-semester" value={semester} onChange={e => setSemester(e.target.value)} />
             </div>
           </div>
           <div>
-            <Label>{t.adminCrud.title}</Label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} />
+            <Label htmlFor="course-title">{t.adminCrud.title}</Label>
+            <Input id="course-title" value={title} onChange={e => setTitle(e.target.value)} />
           </div>
           <div>
-            <Label>{t.adminCrud.description}</Label>
-            <Textarea value={description} onChange={e => setDescription(e.target.value)} />
+            <Label htmlFor="course-description">{t.adminCrud.description}</Label>
+            <Textarea id="course-description" value={description} onChange={e => setDescription(e.target.value)} />
           </div>
           <div>
-            <Label>{t.adminCrud.teacher}</Label>
-            <Select value={teacherId} onChange={e => setTeacherId(e.target.value)}>
+            <Label htmlFor="course-teacher">{t.adminCrud.teacher}</Label>
+            <Select id="course-teacher" value={teacherId} onChange={e => setTeacherId(e.target.value)}>
               <option value="">{t.adminCrud.none}</option>
               {teachers.map(teacher => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}
             </Select>

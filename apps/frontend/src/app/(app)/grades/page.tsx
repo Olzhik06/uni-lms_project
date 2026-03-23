@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 
 const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.07 } } };
-const itemV   = { hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0, transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] } } };
+const itemV   = { hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0, transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] as const } } };
 
 function PercentRing({ pct }: { pct: number }) {
   const r = 28, circ = 2 * Math.PI * r;
@@ -51,12 +51,9 @@ export default function GradesPage() {
           <GraduationCap className="h-7 w-7 text-muted-foreground" />
         </div>
         <p className="font-serif font-semibold text-lg">{t.grades.title}</p>
-        <p className="text-sm text-muted-foreground max-w-xs">
-          Grades are managed per-course. Open a course and go to the&nbsp;
-          <span className="font-medium text-foreground">Grades</span> tab to view your gradebook.
-        </p>
+        <p className="text-sm text-muted-foreground max-w-xs">{t.grades.teacherGradesDesc}</p>
         <Link href="/courses" className="text-sm text-primary hover:underline flex items-center gap-1">
-          View Courses <ChevronRight className="h-4 w-4" />
+          {t.grades.viewCourses} <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
     );
@@ -103,7 +100,7 @@ export default function GradesPage() {
       {/* Header */}
       <div>
         <h1 className="font-serif text-2xl font-semibold">{t.grades.myGrades}</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Your academic performance across all enrolled courses</p>
+        <p className="text-sm text-muted-foreground mt-0.5">{t.grades.gradesSubtitle}</p>
       </div>
 
       {/* Overall summary strip */}
@@ -111,9 +108,9 @@ export default function GradesPage() {
         <motion.div variants={stagger} initial="hidden" animate="visible"
           className="grid gap-3 sm:grid-cols-3">
           {[
-            { label: 'Overall score',    value: `${overallPct}%`,   sub: `${totalEarned} / ${totalPossible} pts`, color: overallPct >= 80 ? 'text-emerald-600 dark:text-emerald-400' : overallPct >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400' },
-            { label: t.grades.graded,    value: gradedCount,         sub: 'assignments graded',                   color: 'text-blue-600 dark:text-blue-400' },
-            { label: 'Courses with data', value: summaryList.length, sub: 'courses tracked',                      color: 'text-primary' },
+            { label: t.grades.overallScore,    value: `${overallPct}%`,   sub: `${totalEarned} / ${totalPossible} pts`, color: overallPct >= 80 ? 'text-emerald-600 dark:text-emerald-400' : overallPct >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400' },
+            { label: t.grades.graded,    value: gradedCount,         sub: t.grades.assignmentsGraded,             color: 'text-blue-600 dark:text-blue-400' },
+            { label: t.grades.byCourse,  value: summaryList.length,  sub: t.grades.coursesTracked,                color: 'text-primary' },
           ].map(({ label, value, sub, color }) => (
             <motion.div key={label} variants={itemV}
               className="rounded-xl border border-border/60 dark:border-white/[0.07] bg-card/80 dark:backdrop-blur-sm p-4 shadow-card">
@@ -142,11 +139,9 @@ export default function GradesPage() {
             </div>
           </div>
           <p className="font-serif font-medium text-foreground mb-1">{t.grades.noGrades}</p>
-          <p className="text-sm text-muted-foreground max-w-xs">
-            Complete and submit assignments — your grades will appear here once your teacher reviews them.
-          </p>
+          <p className="text-sm text-muted-foreground max-w-xs">{t.grades.noGradesDesc}</p>
           <Link href="/courses" className="mt-5 text-sm text-primary hover:underline flex items-center gap-1">
-            Browse your courses <ChevronRight className="h-4 w-4" />
+            {t.grades.browseCourses} <ChevronRight className="h-4 w-4" />
           </Link>
         </motion.div>
       )}
@@ -154,7 +149,7 @@ export default function GradesPage() {
       {/* Per-course summary cards */}
       {summaryList.length > 0 && (
         <div className="space-y-4">
-          <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">By Course</h2>
+          <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">{t.grades.byCourse}</h2>
           <motion.div className="space-y-3" variants={stagger} initial="hidden" animate="visible">
             {summaryList.map(s => {
               const courseGrades = byCourse[s.course?.id ?? ''] || [];
@@ -213,9 +208,9 @@ export default function GradesPage() {
                       ))}
                       {courseGrades.length > 3 && (
                         <div className="px-4 py-2 text-xs text-muted-foreground flex items-center justify-between">
-                          <span>+{courseGrades.length - 3} more</span>
+                          <span>+{courseGrades.length - 3} {t.grades.moreGrades}</span>
                           <Link href={`/courses/${s.course?.id}/grades`} className="text-primary hover:underline">
-                            See all
+                            {t.grades.seeAll}
                           </Link>
                         </div>
                       )}

@@ -1,8 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { Group } from '@/lib/types';
+import type { Group, PaginatedResponse } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,16 +19,29 @@ export default function AdminGroupsPage() {
   const t = useT();
   const [page, setPage] = useState(1);
   const pageSize = 10;
+  const [search, setSearch] = useState('');
+  const [filterYear, setFilterYear] = useState('');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Group | null>(null);
   const [name, setName] = useState('');
   const [degree, setDegree] = useState('');
   const [year, setYear] = useState('');
+  const deferredSearch = useDeferredValue(search);
 
-  const { data: groups, isLoading } = useQuery<Group[]>({
-    queryKey: ['a-groups', page],
-    queryFn: () => api.get(`/admin/groups?page=${page}&limit=${pageSize}`),
+  useEffect(() => {
+    setPage(1);
+  }, [deferredSearch, filterYear]);
+
+  const groupsParams = new URLSearchParams({ page: String(page), limit: String(pageSize) });
+  if (deferredSearch.trim()) groupsParams.set('search', deferredSearch.trim());
+  if (filterYear.trim()) groupsParams.set('year', filterYear.trim());
+
+  const { data, isLoading } = useQuery<PaginatedResponse<Group>>({
+    queryKey: ['a-groups', page, deferredSearch, filterYear],
+    queryFn: () => api.get(`/admin/groups?${groupsParams.toString()}`),
   });
+  const groups = data?.items || [];
+  const hasActiveFilters = !!deferredSearch.trim() || !!filterYear.trim();
 
   const createMutation = useMutation({
     mutationFn: (payload: unknown) => api.post('/admin/groups', payload),
@@ -102,14 +115,36 @@ export default function AdminGroupsPage() {
         </Button>
       </div>
 
+      <Card>
+        <CardContent className="grid gap-3 p-4 md:grid-cols-2">
+          <Label htmlFor="groups-search" className="sr-only">{t.common.search}</Label>
+          <Input
+            id="groups-search"
+            aria-label={`${t.common.search} ${t.adminCrud.groupsTitle.toLowerCase()}`}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={t.adminCrud.groupSearchPlaceholder}
+          />
+          <Label htmlFor="groups-year-filter" className="sr-only">{t.adminCrud.year}</Label>
+          <Input
+            id="groups-year-filter"
+            aria-label={t.adminCrud.year}
+            type="number"
+            value={filterYear}
+            onChange={e => setFilterYear(e.target.value)}
+            placeholder={t.adminCrud.yearPlaceholder}
+          />
+        </CardContent>
+      </Card>
+
       {isLoading ? (
         <div className="space-y-2">{[1, 2].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
       ) : !groups?.length ? (
         <Card>
           <CardContent className="py-16 text-center text-muted-foreground">
             <FolderOpen className="mx-auto mb-3 h-10 w-10 opacity-30" />
-            <p className="text-sm font-medium">{t.adminCrud.groupsEmpty}</p>
-            <p className="mx-auto mt-1 max-w-md text-xs">{t.adminCrud.groupsEmptyDescription}</p>
+            <p className="text-sm font-medium">{hasActiveFilters ? t.common.noResults : t.adminCrud.groupsEmpty}</p>
+            <p className="mx-auto mt-1 max-w-md text-xs">{hasActiveFilters ? t.adminCrud.filteredEmpty : t.adminCrud.groupsEmptyDescription}</p>
           </CardContent>
         </Card>
       ) : (
@@ -170,12 +205,13 @@ export default function AdminGroupsPage() {
                       <td className="p-3">{group.year || '-'}</td>
                       <td className="p-3"><Badge variant="secondary">{group._count?.users || 0}</Badge></td>
                       <td className="p-3 text-right">
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(group)}>
+                        <Button size="sm" variant="ghost" aria-label={`${t.adminCrud.edit}: ${group.name}`} onClick={() => openEdit(group)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
+                          aria-label={`${t.adminCrud.remove}: ${group.name}`}
                           onClick={() => {
                             if (confirm(t.adminCrud.confirmDelete)) deleteMutation.mutate(group.id);
                           }}
@@ -192,7 +228,8 @@ export default function AdminGroupsPage() {
           <PaginationControls
             page={page}
             itemsCount={groups.length}
-            pageSize={pageSize}
+            totalItems={data?.total}
+            hasNext={data?.hasNext ?? false}
             isLoading={isLoading}
             onPrevious={() => setPage(current => Math.max(1, current - 1))}
             onNext={() => setPage(current => current + 1)}
@@ -206,16 +243,16 @@ export default function AdminGroupsPage() {
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label>{t.adminCrud.name}</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder={t.adminCrud.namePlaceholder} />
+            <Label htmlFor="group-name">{t.adminCrud.name}</Label>
+            <Input id="group-name" value={name} onChange={e => setName(e.target.value)} placeholder={t.adminCrud.namePlaceholder} />
           </div>
           <div>
-            <Label>{t.adminCrud.degree}</Label>
-            <Input value={degree} onChange={e => setDegree(e.target.value)} placeholder={t.adminCrud.degreePlaceholder} />
+            <Label htmlFor="group-degree">{t.adminCrud.degree}</Label>
+            <Input id="group-degree" value={degree} onChange={e => setDegree(e.target.value)} placeholder={t.adminCrud.degreePlaceholder} />
           </div>
           <div>
-            <Label>{t.adminCrud.year}</Label>
-            <Input type="number" value={year} onChange={e => setYear(e.target.value)} />
+            <Label htmlFor="group-year">{t.adminCrud.year}</Label>
+            <Input id="group-year" type="number" value={year} onChange={e => setYear(e.target.value)} />
           </div>
           <Button className="w-full" onClick={submit} disabled={!name}>
             {editing ? t.adminCrud.update : t.adminCrud.create}

@@ -23,7 +23,7 @@ export class ScheduleService {
 
   async create(cid: string, dto: CreateScheduleItemDto, user: { id: string; role: Role }) {
     if (user.role === Role.TEACHER && !(await this.db.enrollment.findFirst({ where: { userId: user.id, courseId: cid, roleInCourse: CourseRole.TEACHER } })))
-      throw new ForbiddenException('Not teacher');
+      throw new ForbiddenException('errors.common.notTeacher');
     return this.db.scheduleItem.create({ data: { courseId: cid, startsAt: new Date(dto.startsAt), endsAt: new Date(dto.endsAt), room: dto.room, type: dto.type, groupId: dto.groupId || null }, include: { course: { select: { id: true, code: true, title: true } } } });
   }
 

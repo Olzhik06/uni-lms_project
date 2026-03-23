@@ -19,8 +19,22 @@ export class CoursesController {
   @ApiOperation({ summary: 'List courses (filtered by enrollment for non-admins)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  findAll(@CurrentUser() u: any, @Query('page') page?: string, @Query('limit') limit?: string) {
-    return this.svc.findAll(u, page ? +page : 1, limit ? +limit : 20);
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'teacherId', required: false, type: String })
+  @ApiQuery({ name: 'semester', required: false, type: String })
+  findAll(
+    @CurrentUser() u: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('teacherId') teacherId?: string,
+    @Query('semester') semester?: string,
+  ) {
+    return this.svc.findAll(
+      u,
+      { page: page ? +page : undefined, limit: limit ? +limit : undefined },
+      { search, teacherId, semester },
+    );
   }
 
   @Get(':id')

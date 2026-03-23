@@ -26,7 +26,7 @@ import { Button } from '@/components/ui/button';
 import {
   AlertCircle, ArrowLeft, BarChart3, BookMarked, Brain, Calendar,
   CalendarCheck, CheckCircle2, ClipboardList, Clock,
-  LayoutDashboard, Sparkles, Users,
+  LayoutDashboard, MessageSquare, Sparkles, Users,
 } from 'lucide-react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { useT } from '@/lib/i18n';
@@ -76,7 +76,7 @@ const HERO_STAGGER: Variants = {
 };
 const HERO_ITEM: Variants = {
   hidden: { opacity: 0, y: 14 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as const } },
 };
 
 function CourseHero({
@@ -87,6 +87,7 @@ function CourseHero({
   isStudent: boolean;
   id:        string;
 }) {
+  const t    = useT();
   const pct  = progress?.progress ?? 0;
 
   return (
@@ -227,7 +228,7 @@ function CourseHero({
                 className="gap-1.5 text-[11px] border-foreground/15 dark:border-white/[0.1] dark:text-foreground/70"
               >
                 <Users className="h-3 w-3" />
-                {(course as any)._count.enrollments} enrolled
+                {(course as any)._count.enrollments} {t.courseOverview.enrolled}
               </Badge>
             )}
             {(course as any)?._count?.assignments != null && (
@@ -236,7 +237,7 @@ function CourseHero({
                 className="gap-1.5 text-[11px] border-foreground/15 dark:border-white/[0.1] dark:text-foreground/70"
               >
                 <ClipboardList className="h-3 w-3" />
-                {(course as any)._count.assignments} assignments
+                {(course as any)._count.assignments} {t.courseLayout.assignments.toLowerCase()}
               </Badge>
             )}
           </motion.div>
@@ -264,7 +265,7 @@ function CourseHero({
               </div>
               <div>
                 <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/65 dark:text-primary/50">
-                  Progress
+                  {t.courseLayout.progress}
                 </p>
                 <p className="text-sm font-semibold text-foreground dark:text-primary mt-0.5">
                   {progress?.completedAssignments ?? 0}
@@ -284,7 +285,7 @@ function CourseHero({
                 className="w-full gap-2 dark:shadow-glow-sm dark:hover:shadow-glow transition-shadow duration-200"
               >
                 <ClipboardList className="h-3.5 w-3.5" />
-                Assignments
+                {t.courseLayout.assignments}
               </Button>
             </Link>
             <Link href={`/courses/${id}/grades`}>
@@ -294,7 +295,7 @@ function CourseHero({
                 className="w-full gap-2 dark:hover:border-primary/40 dark:hover:text-primary transition-colors duration-150"
               >
                 <BarChart3 className="h-3.5 w-3.5" />
-                {isStudent ? 'My Grades' : 'Grades'}
+                {isStudent ? t.grades.myGrades : t.courseLayout.grades}
               </Button>
             </Link>
           </div>
@@ -329,7 +330,7 @@ function StickySubnav({
       <div className="flex overflow-x-auto gap-0 scrollbar-none">
         {tabs.map(tab => {
           const href     = `/courses/${id}/${tab.h}`;
-          const isActive = path.endsWith(tab.h);
+          const isActive = path.endsWith(`/${tab.h}`) || path.includes(`/${tab.h}/`);
           return (
             <Link
               key={tab.h}
@@ -381,6 +382,7 @@ function AiAssistantPanel({
 }) {
   if (!isStudent) return null;
 
+  const t   = useT();
   const days = nextDeadline ? daysUntil(nextDeadline.dueAt) : null;
 
   type Urgency = 'critical' | 'warn' | 'ok';
@@ -389,37 +391,37 @@ function AiAssistantPanel({
   let rec: Rec;
   const shortTitle = (s: string) => s.length > 30 ? s.slice(0, 30) + '…' : s;
   if (days !== null && days < 0) {
-    rec = { icon: AlertCircle, urgency: 'critical', title: 'Past due',
-      body: `Submit "${shortTitle(nextDeadline!.title)}" now to salvage points`,
-      cta: 'Submit now', href: `/courses/${id}/assignments` };
+    rec = { icon: AlertCircle, urgency: 'critical', title: t.courseLayout.aiPastDueTitle,
+      body: `${t.courseLayout.aiPastDueBodyPre}${shortTitle(nextDeadline!.title)}${t.courseLayout.aiPastDueBodyPost}`,
+      cta: t.courseLayout.aiPastDueCta, href: `/courses/${id}/assignments` };
   } else if (days === 0) {
-    rec = { icon: AlertCircle, urgency: 'critical', title: 'Due today',
-      body: `"${shortTitle(nextDeadline!.title)}" — final hours remaining`,
-      cta: 'Submit', href: `/courses/${id}/assignments` };
+    rec = { icon: AlertCircle, urgency: 'critical', title: t.courseLayout.aiDueTodayTitle,
+      body: `"${shortTitle(nextDeadline!.title)}" ${t.courseLayout.aiDueTodayBodyPost}`,
+      cta: t.courseLayout.aiDueTodayCta, href: `/courses/${id}/assignments` };
   } else if (days !== null && days <= 3) {
-    rec = { icon: Clock, urgency: 'warn', title: `${days}d to deadline`,
-      body: `Finish "${shortTitle(nextDeadline!.title)}" to stay on track`,
-      cta: 'Start now', href: `/courses/${id}/assignments` };
+    rec = { icon: Clock, urgency: 'warn', title: `${days}${t.courseLayout.aiDaysDeadline}`,
+      body: `${t.courseLayout.aiFinish}${shortTitle(nextDeadline!.title)}${t.courseLayout.aiFinishPost}`,
+      cta: t.courseLayout.aiStartNow, href: `/courses/${id}/assignments` };
   } else if (progress && (progress.progress ?? 0) < 40 && (progress.totalAssignments ?? 0) > 0) {
     const needed = progress.totalAssignments - progress.completedAssignments;
-    rec = { icon: Clock, urgency: 'warn', title: 'Behind schedule',
-      body: `${needed} assignment${needed !== 1 ? 's' : ''} remaining — pick up the pace`,
-      cta: 'Catch up', href: `/courses/${id}/assignments` };
+    rec = { icon: Clock, urgency: 'warn', title: t.courseLayout.aiBehindTitle,
+      body: `${needed} ${needed !== 1 ? t.courseLayout.aiAssignmentPlural : t.courseLayout.aiAssignment} ${t.courseLayout.aiRemainingPace}`,
+      cta: t.courseLayout.aiCatchUp, href: `/courses/${id}/assignments` };
   } else if (progress && (progress.totalAssignments ?? 0) > 0) {
     const remaining = progress.totalAssignments - progress.completedAssignments;
     const nextMilestone = Math.min(100, Math.ceil(((progress.completedAssignments + 1) / progress.totalAssignments) * 10) * 10);
-    rec = { icon: CheckCircle2, urgency: 'ok', title: 'On track',
+    rec = { icon: CheckCircle2, urgency: 'ok', title: t.courseLayout.aiOnTrackTitle,
       body: remaining > 0
-        ? `Complete ${remaining === 1 ? 'this one' : '1 more'} to reach ${nextMilestone}%`
-        : 'All assignments complete — well done',
-      cta: remaining > 0 ? 'View tasks' : undefined,
+        ? `${remaining === 1 ? t.courseLayout.aiCompleteThisOne : t.courseLayout.aiComplete1More} ${nextMilestone}%`
+        : t.courseLayout.aiAllComplete,
+      cta: remaining > 0 ? t.courseLayout.aiViewTasks : undefined,
       href: remaining > 0 ? `/courses/${id}/assignments` : undefined };
   } else if (nextDeadline) {
-    rec = { icon: CheckCircle2, urgency: 'ok', title: 'On track',
-      body: `Next due: ${formatDate(nextDeadline.dueAt)}`,
-      cta: 'View tasks', href: `/courses/${id}/assignments` };
+    rec = { icon: CheckCircle2, urgency: 'ok', title: t.courseLayout.aiOnTrackTitle,
+      body: `${t.courseLayout.aiNextDue} ${formatDate(nextDeadline.dueAt)}`,
+      cta: t.courseLayout.aiViewTasks, href: `/courses/${id}/assignments` };
   } else {
-    rec = { icon: CheckCircle2, urgency: 'ok', title: 'All clear', body: 'No pending deadlines. Great work!' };
+    rec = { icon: CheckCircle2, urgency: 'ok', title: t.courseLayout.aiAllClearTitle, body: t.courseLayout.aiAllClearBody };
   }
 
   const RecIcon = rec.icon;
@@ -518,6 +520,7 @@ function CourseRightSidebar({
   isStudent:    boolean;
   id:           string;
 }) {
+  const t    = useT();
   const days = nextDeadline ? daysUntil(nextDeadline.dueAt) : null;
 
   const cardCn = cn(
@@ -547,7 +550,7 @@ function CourseRightSidebar({
           )}
         >
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/65 dark:text-primary/50 mb-2">
-            Next Deadline
+            {t.courseLayout.nextDeadline}
           </p>
           <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
             {nextDeadline.title}
@@ -558,14 +561,14 @@ function CourseRightSidebar({
             days !== null && days <= 3 ? 'text-amber-600 dark:text-amber-400' :
             'text-muted-foreground',
           )}>
-            {days === 0 ? '⚡ Due today' :
-             days === 1 ? '⚡ Due tomorrow' :
-             days !== null && days < 0 ? '⚠ Overdue' :
-             `Due ${formatDate(nextDeadline.dueAt)}`}
+            {days === 0 ? `⚡ ${t.courseAssignments.dueToday}` :
+             days === 1 ? `⚡ ${t.courseLayout.dueTomorrow}` :
+             days !== null && days < 0 ? `⚠ ${t.courseAssignments.overdue}` :
+             `${t.courseLayout.dueOn} ${formatDate(nextDeadline.dueAt)}`}
           </p>
           <Link href={`/courses/${id}/assignments`}>
             <Button size="sm" variant="outline" className="mt-3 w-full h-7 text-xs">
-              View assignment →
+              {t.courseLayout.viewAssignment}
             </Button>
           </Link>
         </div>
@@ -583,7 +586,7 @@ function CourseRightSidebar({
         return (
           <div className={cardCn}>
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/65 dark:text-primary/50 mb-3">
-              Recent Grade
+              {t.courseLayout.recentGrade}
             </p>
             <div className="flex items-center gap-3">
               <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold', colorCn)}>
@@ -636,6 +639,7 @@ export default function CourseLayout({ children }: { children: React.ReactNode }
     { l: t.courseLayout.attendance,   h: 'attendance',   icon: CalendarCheck   },
     { l: t.courseLayout.participants, h: 'participants', icon: Users           },
     { l: t.courseLayout.quiz,         h: 'quiz',         icon: Brain           },
+    { l: t.courseLayout.forum,        h: 'forum',        icon: MessageSquare   },
   ];
 
   const activeTab = path.split('/').pop() ?? '';

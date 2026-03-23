@@ -5,7 +5,13 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttribu
   ({ className, ...p }, r) => (
     <textarea
       className={cn(
-        'flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+        'flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm',
+        'shadow-sm transition-[border-color,box-shadow] duration-150',
+        'placeholder:text-muted-foreground',
+        'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+        'disabled:cursor-not-allowed disabled:opacity-50',
+        'dark:bg-input/40 dark:border-white/[0.08]',
+        'dark:focus-visible:border-primary/50 dark:focus-visible:ring-0 dark:focus-visible:shadow-glow-sm',
         className
       )}
       ref={r}
@@ -27,12 +33,13 @@ function Skeleton({ className, ...p }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        'rounded-md bg-muted overflow-hidden relative',
+        'relative overflow-hidden rounded-md bg-muted',
+        'dark:bg-white/[0.05]',
         className
       )}
       {...p}
     >
-      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent dark:via-primary/[0.06]" />
     </div>
   );
 }
@@ -42,7 +49,11 @@ const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HT
     <select
       ref={r}
       className={cn(
-        'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+        'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm',
+        'shadow-sm transition-[border-color] duration-150',
+        'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+        'dark:bg-input/40 dark:border-white/[0.08]',
+        'dark:focus-visible:border-primary/50 dark:focus-visible:ring-0',
         className
       )}
       {...p}

@@ -4,68 +4,92 @@
 
 @layer base {
   :root {
-    /* Academic Editorial — warm off-white + deep green */
-    --background: 40 20% 97%;
-    --foreground: 0 0% 7%;
+    /* ── LIGHT: Premium Academic Editorial ───────────────────────────────
+       Warm cream paper, forest-green authority, editorial spacing         */
+    --background: 38 25% 96%;        /* warm cream — like laid paper       */
+    --foreground: 222 15% 12%;       /* deep ink                           */
 
-    --card: 40 20% 98%;
-    --card-foreground: 0 0% 7%;
+    --card: 0 0% 100%;               /* pure paper white                   */
+    --card-foreground: 222 15% 12%;
 
-    --primary: 160 72% 14%;
+    --primary: 160 72% 14%;          /* forest green — academic authority  */
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 40 15% 93%;
-    --secondary-foreground: 0 0% 20%;
+    --secondary: 38 18% 91%;
+    --secondary-foreground: 222 10% 25%;
 
-    --muted: 40 10% 92%;
-    --muted-foreground: 0 0% 42%;
+    --muted: 38 15% 91%;
+    --muted-foreground: 30 8% 48%;
 
-    --accent: 160 18% 91%;
+    --accent: 155 18% 92%;           /* soft sage                          */
     --accent-foreground: 160 72% 14%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 40 12% 87%;
-    --input: 40 12% 87%;
+    --border: 38 15% 87%;
+    --input: 38 15% 87%;
     --ring: 160 72% 14%;
 
-    --radius: 0.375rem;
+    --radius: 0.5rem;
   }
 
   .dark {
-    /* Academic dark — warm charcoal + soft green */
-    --background: 30 6% 10%;
-    --foreground: 40 18% 92%;
+    /* ── DARK: Futuristic Learning OS ────────────────────────────────────
+       Deep space blue-black, electric teal primary, glass surfaces       */
+    --background: 222 47% 5%;        /* deep space — near-black blue       */
+    --foreground: 210 25% 92%;       /* cool crisp white                   */
 
-    --card: 30 5% 13%;
-    --card-foreground: 40 18% 92%;
+    --card: 222 38% 9%;              /* elevated dark surface              */
+    --card-foreground: 210 25% 92%;
 
-    --primary: 160 48% 42%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 173 80% 54%;          /* electric teal — the OS accent      */
+    --primary-foreground: 220 47% 5%;
 
-    --secondary: 30 5% 18%;
-    --secondary-foreground: 40 12% 80%;
+    --secondary: 222 25% 13%;
+    --secondary-foreground: 210 20% 72%;
 
-    --muted: 30 5% 17%;
-    --muted-foreground: 40 8% 55%;
+    --muted: 222 25% 11%;
+    --muted-foreground: 215 15% 50%;
 
-    --accent: 160 15% 18%;
-    --accent-foreground: 160 48% 60%;
+    --accent: 222 30% 14%;
+    --accent-foreground: 173 80% 54%;
 
-    --destructive: 0 62% 50%;
+    --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 30 5% 20%;
-    --input: 30 5% 20%;
-    --ring: 160 48% 42%;
+    --border: 222 25% 17%;
+    --input: 222 28% 11%;
+    --ring: 173 80% 54%;
   }
 }
 
 @layer base {
   * { @apply border-border; }
-  body { @apply bg-background text-foreground; font-feature-settings: "rlig" 1, "calt" 1; }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
   h1, h2, h3 { font-family: var(--font-serif); }
 }
 
-/* Framer Motion handles page transitions — no CSS fade-up needed */
+/* ── Light: barely-visible paper grain (1% noise) ────────────────────── */
+:root body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.018'/%3E%3C/svg%3E");
+}
+
+/* ── Dark: ambient technological atmosphere ──────────────────────────────
+   Two subtle glows — teal top-left, blue bottom-right — give depth      */
+.dark body {
+  background-image:
+    radial-gradient(ellipse 70% 45% at 12% 0%,  hsl(173 80% 54% / 0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 55% 40% at 88% 105%, hsl(215 80% 55% / 0.05) 0%, transparent 70%);
+}
+
+/* Framer Motion handles page transitions */
+
+/* ── Grid-shift: slow-scrolling tech grid for dark hero ─────────────────── */
+@keyframes grid-shift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 44px 44px; }
+}

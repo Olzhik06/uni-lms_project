@@ -7,7 +7,8 @@ import { useT } from '@/lib/i18n';
 type PaginationControlsProps = {
   page: number;
   itemsCount: number;
-  pageSize: number;
+  totalItems?: number;
+  hasNext: boolean;
   isLoading?: boolean;
   onPrevious: () => void;
   onNext: () => void;
@@ -16,20 +17,22 @@ type PaginationControlsProps = {
 export function PaginationControls({
   page,
   itemsCount,
-  pageSize,
+  totalItems,
+  hasNext,
   isLoading,
   onPrevious,
   onNext,
 }: PaginationControlsProps) {
   const t = useT();
   const hasPrevious = page > 1;
-  const hasNext = itemsCount >= pageSize;
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="text-sm text-muted-foreground">
         <span className="font-medium text-foreground">{t.common.page} {page}</span>
-        <span className="ml-2">{itemsCount} {t.common.resultsOnPage}</span>
+        <span className="ml-2">
+          {totalItems !== undefined ? `${itemsCount} ${t.common.of} ${totalItems}` : itemsCount} {t.common.resultsOnPage}
+        </span>
       </div>
       <div className="flex items-center gap-2">
         <Button size="sm" variant="outline" onClick={onPrevious} disabled={!hasPrevious || isLoading} className="gap-1.5">

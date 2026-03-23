@@ -1,5 +1,10 @@
 import { PrismaClient, Role, CourseRole, ScheduleType, SubmissionStatus, NotificationType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import {
+  getAnnouncementNotificationContent,
+  getAssignmentNotificationContent,
+  getGradeNotificationContent,
+} from '../src/common/user-content';
 
 const prisma = new PrismaClient();
 
@@ -12,13 +17,22 @@ async function main() {
 
   const group = await prisma.group.create({ data: { name: 'SE-2302', degree: 'Bachelor', year: 2 } });
 
-  const admin = await prisma.user.create({ data: { email: 'admin@uni.kz', passwordHash: h('Admin123!'), fullName: 'System Admin', role: Role.ADMIN } });
-  const t1 = await prisma.user.create({ data: { email: 'teacher1@uni.kz', passwordHash: h('Teacher123!'), fullName: 'Dr. Aisha Nurlanovna', role: Role.TEACHER } });
-  const t2 = await prisma.user.create({ data: { email: 'teacher2@uni.kz', passwordHash: h('Teacher123!'), fullName: 'Prof. Bolat Serikovich', role: Role.TEACHER } });
+  const admin = await prisma.user.create({ data: { email: 'admin@uni.kz', passwordHash: h('Admin123!'), fullName: 'System Admin', role: Role.ADMIN, preferredLang: 'en' } });
+  const t1 = await prisma.user.create({ data: { email: 'teacher1@uni.kz', passwordHash: h('Teacher123!'), fullName: 'Dr. Aisha Nurlanovna', role: Role.TEACHER, preferredLang: 'ru' } });
+  const t2 = await prisma.user.create({ data: { email: 'teacher2@uni.kz', passwordHash: h('Teacher123!'), fullName: 'Prof. Bolat Serikovich', role: Role.TEACHER, preferredLang: 'kz' } });
 
   const sn = ['Aliya Kanatova','Daulet Akhmetov','Madina Zhanseitova','Nursultan Bekmuratov','Zarina Tulegenova'];
   const students = await Promise.all(sn.map((fn, i) =>
-    prisma.user.create({ data: { email: `student${i+1}@uni.kz`, passwordHash: h('Student123!'), fullName: fn, role: Role.STUDENT, groupId: group.id } })
+    prisma.user.create({
+      data: {
+        email: `student${i+1}@uni.kz`,
+        passwordHash: h('Student123!'),
+        fullName: fn,
+        role: Role.STUDENT,
+        groupId: group.id,
+        preferredLang: ['en', 'ru', 'kz', 'ru', 'en'][i],
+      },
+    })
   ));
 
   const c1 = await prisma.course.create({ data: { code: 'SE-ARCH-301', title: 'Software Architecture', description: 'Design patterns, architectural styles, system design.', teacherId: t1.id, semester: '2025-Spring' } });
@@ -74,11 +88,28 @@ async function main() {
     { authorId: t2.id, courseId: c3.id, title: 'Guest Lecture', body: 'Dr. Kim, Friday 2 PM, C-410.' },
   ] });
 
+  const welcomeNotifications = students.map(s => ({
+    userId: s.id,
+    type: NotificationType.ANNOUNCEMENT as NotificationType,
+    ...getAnnouncementNotificationContent('', 'Welcome to Spring 2025', s.preferredLang),
+    link: '/dashboard',
+    isRead: false,
+  }));
+  const gradeOne = getGradeNotificationContent('ER Diagram Design', 72, 80, students[0].preferredLang);
+  const gradeTwo = getGradeNotificationContent('ER Diagram Design', 78, 80, students[1].preferredLang);
+  const assignmentReminders = students.slice(0, 3).map(s => ({
+    userId: s.id,
+    type: NotificationType.ASSIGNMENT_DUE as NotificationType,
+    ...getAssignmentNotificationContent('Design Patterns Essay', c1.title, dfn(3), s.preferredLang),
+    link: `/courses/${c1.id}/assignments`,
+    isRead: false,
+  }));
+
   await prisma.notification.createMany({ data: [
-    ...students.map(s => ({ userId: s.id, type: NotificationType.ANNOUNCEMENT as NotificationType, title: 'New announcement', body: 'Welcome to Spring 2025', link: '/dashboard', isRead: false })),
-    { userId: students[0].id, type: NotificationType.GRADE_PUBLISHED, title: 'Grade published', body: 'ER Diagram: 72/80', link: `/courses/${c2.id}/grades`, isRead: false },
-    { userId: students[1].id, type: NotificationType.GRADE_PUBLISHED, title: 'Grade published', body: 'ER Diagram: 78/80', link: `/courses/${c2.id}/grades`, isRead: true },
-    ...students.slice(0,3).map(s => ({ userId: s.id, type: NotificationType.ASSIGNMENT_DUE as NotificationType, title: 'Due soon', body: 'Design Patterns Essay - 3 days', link: `/courses/${c1.id}/assignments`, isRead: false })),
+    ...welcomeNotifications,
+    { userId: students[0].id, type: NotificationType.GRADE_PUBLISHED, ...gradeOne, link: `/courses/${c2.id}/grades`, isRead: false },
+    { userId: students[1].id, type: NotificationType.GRADE_PUBLISHED, ...gradeTwo, link: `/courses/${c2.id}/grades`, isRead: true },
+    ...assignmentReminders,
   ] });
 
   console.log('Seed complete.');

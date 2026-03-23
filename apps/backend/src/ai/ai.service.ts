@@ -1,4 +1,4 @@
-import { Injectable, Logger, InternalServerErrorException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { PrismaService } from '../prisma/prisma.service';
@@ -379,6 +379,141 @@ Provide analysis as JSON:
     }
 
     await this.log(userId, 'student-analysis', prompt, JSON.stringify(result));
+    return result;
+  }
+
+  async reviewSubmission(submissionId: string, userId: string) {
+    const sub = await this.db.submission.findUnique({
+      where: { id: submissionId },
+      include: {
+        assignment: { include: { course: { select: { id: true, title: true, code: true } } } },
+        student: { select: { id: true, fullName: true } },
+        grade: true,
+        attachments: true,
+      },
+    });
+    if (!sub) throw new NotFoundException('Submission not found');
+
+    if (this.isDemo) {
+      return {
+        _demo: true,
+        summary: `Demo mode is active. The student submitted a ${sub.contentText ? 'text-based' : 'file-based'} response to "${sub.assignment.title}". Set LLM_API_KEY for real AI analysis.`,
+        strengths: ['Submission was received', 'Content structure is present'],
+        weaknesses: ['Unable to perform real analysis without LLM key'],
+        missingRequirements: [],
+        suggestedScore: { min: 60, max: 75, reason: 'Demo mode — range is a placeholder. Set LLM_API_KEY for real analysis.' },
+        rubricHints: [
+          { criterion: 'Correctness', note: 'Cannot assess in demo mode' },
+          { criterion: 'Clarity', note: 'Cannot assess in demo mode' },
+          { criterion: 'Completeness', note: 'Cannot assess in demo mode' },
+        ],
+        draftFeedback: 'Your submission has been received. Please check back after the teacher reviews your work.',
+        confidence: 0.0,
+      };
+    }
+
+    const attachmentSummary = sub.attachments.length > 0
+      ? sub.attachments.map(a => `  - ${a.fileName} (${a.mimeType}, ${(a.fileSize / 1024).toFixed(1)} KB)`).join('\n')
+      : '  None';
+
+    const wordCount = sub.contentText
+      ? sub.contentText.split(/\s+/).filter(Boolean).length
+      : 0;
+
+    const contentSection = [
+      sub.contentText
+        ? `TEXT CONTENT (${wordCount} words):\n${sub.contentText.slice(0, 3000)}${sub.contentText.length > 3000 ? '\n[truncated…]' : ''}`
+        : null,
+      sub.contentUrl
+        ? `SUBMITTED LINK: ${sub.contentUrl}`
+        : null,
+      sub.fileUrl && sub.attachments.length === 0
+        ? `LEGACY FILE: ${sub.fileUrl} (file content not available for text analysis)`
+        : null,
+      sub.attachments.length > 0
+        ? `ATTACHED FILES (metadata only — file text not available for analysis):\n${attachmentSummary}`
+        : null,
+    ].filter(Boolean).join('\n\n');
+
+    const isLate = sub.submittedAt && new Date(sub.submittedAt) > new Date(sub.assignment.dueAt);
+
+    const prompt = `You are an expert university teaching assistant helping a teacher review a student submission. Your role is to ASSIST, not replace, the teacher's judgment.
+
+ASSIGNMENT CONTEXT:
+Title: ${sub.assignment.title}
+Description: ${sub.assignment.description || 'No description provided'}
+Max Score: ${sub.assignment.maxScore}
+Due: ${new Date(sub.assignment.dueAt).toISOString().slice(0, 10)}
+Course: ${sub.assignment.course.code} — ${sub.assignment.course.title}
+
+SUBMISSION DETAILS:
+Student: ${sub.student.fullName}
+Submitted: ${sub.submittedAt ? new Date(sub.submittedAt).toISOString().slice(0, 16).replace('T', ' ') : 'Not yet submitted'}${isLate ? ' (LATE)' : ''}
+Status: ${sub.status}
+
+${contentSection || 'NO CONTENT SUBMITTED'}
+
+INSTRUCTIONS:
+- Analyze ONLY the content provided above. Do NOT invent content that is not there.
+- If files were submitted but their text is unavailable, note this explicitly in your analysis.
+- If the submission is very short or empty, express low confidence and note the limitation.
+- Provide a RANGE for suggested score, never a single number.
+- Write the draftFeedback as if addressing the student directly (2nd person, constructive, encouraging tone).
+- Be specific — reference actual content from the submission where possible.
+
+Return ONLY valid JSON with this exact structure:
+{
+  "summary": "2-3 sentence neutral factual summary of what was submitted",
+  "strengths": ["specific observed strength 1", "specific observed strength 2"],
+  "weaknesses": ["specific observed weakness 1", "specific observed weakness 2"],
+  "missingRequirements": ["item that seems required but is absent, or empty array if none obvious"],
+  "suggestedScore": {
+    "min": <integer between 0 and ${sub.assignment.maxScore}>,
+    "max": <integer between 0 and ${sub.assignment.maxScore}, must be >= min>,
+    "reason": "1-2 sentence justification for this range"
+  },
+  "rubricHints": [
+    {"criterion": "Correctness", "note": "observation about correctness"},
+    {"criterion": "Clarity", "note": "observation about writing clarity"},
+    {"criterion": "Completeness", "note": "observation about coverage of requirements"}
+  ],
+  "draftFeedback": "2-4 paragraph feedback text the teacher can send to the student after editing",
+  "confidence": <float 0.0-1.0 reflecting how much content was available to analyze>
+}`;
+
+    let result: any;
+    try {
+      const response = await Promise.race([
+        this.client!.messages.create({
+          model: 'claude-opus-4-6',
+          max_tokens: 2048,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('AI request timed out after 30s')), 30000),
+        ),
+      ]);
+
+      const textBlock = (response as Anthropic.Message).content.find(b => b.type === 'text');
+      if (!textBlock || textBlock.type !== 'text') throw new InternalServerErrorException('No response from AI');
+
+      const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
+      result = JSON.parse(jsonMatch ? jsonMatch[0] : textBlock.text);
+    } catch (e: any) {
+      this.logger.error('reviewSubmission AI call failed', e.message);
+      throw new InternalServerErrorException(e.message || 'AI review failed');
+    }
+
+    await this.log(userId, 'review-submission', prompt, JSON.stringify(result));
+
+    try {
+      await (this.db as any).aiReviewLog?.create({
+        data: { submissionId, output: result },
+      });
+    } catch {
+      // AiReviewLog table may not exist yet — non-fatal
+    }
+
     return result;
   }
 

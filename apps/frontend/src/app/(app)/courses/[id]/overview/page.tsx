@@ -30,7 +30,7 @@ export default function OverviewPage() {
   const [summary, setSummary] = useState<AiCourseSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
 
-  const { data: course } = useQuery<Course>({
+  const { data: course, isLoading: courseLoading } = useQuery<Course>({
     queryKey: ['course', id],
     queryFn: () => api.get(`/courses/${id}`),
   });
@@ -81,11 +81,21 @@ export default function OverviewPage() {
       {/* Course info card */}
       <Card>
         <CardContent className="pt-6">
-          <p className="text-sm">{course?.description || t.courseOverview.noDescription}</p>
-          {(course as any)?._count?.enrollments != null && (
-            <div className="mt-4 text-sm text-muted-foreground">
-              <span>{(course as any)._count.enrollments} {t.courseOverview.enrolled}</span>
+          {courseLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2 mt-4" />
             </div>
+          ) : (
+            <>
+              <p className="text-sm">{course?.description || t.courseOverview.noDescription}</p>
+              {(course as any)?._count?.enrollments != null && (
+                <div className="mt-4 text-sm text-muted-foreground">
+                  <span>{(course as any)._count.enrollments} {t.courseOverview.enrolled}</span>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -208,8 +218,8 @@ export default function OverviewPage() {
                 <p className="text-sm font-medium text-foreground/70">{t.courseOverview.noAnnouncements}</p>
                 <p className="text-xs text-muted-foreground mt-1 max-w-xs">
                   {canPost
-                    ? 'Post the first update to keep your students informed.'
-                    : 'Your instructor hasn\'t posted any updates yet. Check back later.'}
+                    ? t.courseOverview.noAnnouncementsTeacher
+                    : t.courseOverview.noAnnouncementsStudent}
                 </p>
               </div>
               {canPost && (
@@ -217,7 +227,7 @@ export default function OverviewPage() {
                   onClick={() => setShow(true)}
                   className="text-xs text-primary hover:underline mt-1"
                 >
-                  Post the first announcement →
+                  {t.courseOverview.postFirstAnnouncement}
                 </button>
               )}
             </div>

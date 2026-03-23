@@ -14,9 +14,19 @@ export class MaterialsService {
   async create(courseId: string, dto: CreateMaterialDto, user: { id: string; role: Role }) {
     if (user.role !== Role.ADMIN) {
       const enr = await this.db.enrollment.findFirst({ where: { userId: user.id, courseId, roleInCourse: CourseRole.TEACHER } });
-      if (!enr) throw new ForbiddenException('Only course teachers or admins can add materials');
+      if (!enr) throw new ForbiddenException('errors.material.onlyTeachersOrAdmins');
     }
     return this.db.courseMaterial.create({ data: { courseId, title: dto.title, type: dto.type, url: dto.url, content: dto.content } });
+  }
+
+  async createFromUpload(courseId: string, file: Express.Multer.File, title: string | undefined, user: { id: string; role: Role }) {
+    if (user.role !== Role.ADMIN) {
+      const enr = await this.db.enrollment.findFirst({ where: { userId: user.id, courseId, roleInCourse: CourseRole.TEACHER } });
+      if (!enr) throw new ForbiddenException('errors.material.onlyTeachersOrAdmins');
+    }
+    const fileUrl = `/uploads/${file.filename}`;
+    const fileName = title?.trim() || file.originalname;
+    return this.db.courseMaterial.create({ data: { courseId, title: fileName, type: 'file', url: fileUrl } });
   }
 
   async remove(id: string, user: { id: string; role: Role }) {

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
@@ -19,14 +20,20 @@ import { ActivityLogModule } from './activity-log/activity-log.module';
 import { AdminModule } from './admin/admin.module';
 import { MailModule } from './mail/mail.module';
 import { AiModule } from './ai/ai.module';
+import { QuizModule } from './quiz/quiz.module';
+import { RubricModule } from './rubric/rubric.module';
+import { ForumModule } from './forum/forum.module';
+import { DeadlineReminderModule } from './deadline-reminder/deadline-reminder.module';
 
 @Module({
   imports: [
+    NestScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     PrismaModule, AuthModule, UsersModule, GroupsModule, CoursesModule,
     EnrollmentsModule, AnnouncementsModule, AssignmentsModule, GradesModule,
     ScheduleModule, NotificationsModule, MaterialsModule, AttendanceModule,
-    SearchModule, ActivityLogModule, AdminModule, MailModule, AiModule,
+    SearchModule, ActivityLogModule, AdminModule, MailModule, AiModule, QuizModule, RubricModule, ForumModule,
+    DeadlineReminderModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

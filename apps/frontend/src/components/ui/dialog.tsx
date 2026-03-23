@@ -20,6 +20,14 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
   const titleId = React.useId();
   const contentRef = React.useRef<HTMLDivElement>(null);
 
+  // Keep a stable ref so the keydown handler always calls the latest
+  // onOpenChange without adding it to the effect's dependency array.
+  // If onOpenChange were in deps (and callers pass inline functions), the
+  // effect would re-run on every parent render, invoking focusable?.focus()
+  // after every keystroke and stealing focus away from the active input.
+  const onOpenChangeRef = React.useRef(onOpenChange);
+  React.useEffect(() => { onOpenChangeRef.current = onOpenChange; });
+
   React.useEffect(() => {
     if (!open) return;
 
@@ -27,15 +35,20 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
-    const focusable = contentRef.current?.querySelector<HTMLElement>(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    // Prefer a real input/select/textarea over a plain button (e.g. the close X).
+    // Falls back to any focusable if no form control is present.
+    const inputFirst = contentRef.current?.querySelector<HTMLElement>(
+      'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])',
     );
-    focusable?.focus();
+    const fallback = contentRef.current?.querySelector<HTMLElement>(
+      'button:not([disabled]):not([aria-label="Close dialog"]), [href], [tabindex]:not([tabindex="-1"])',
+    );
+    (inputFirst ?? fallback)?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onOpenChange(false);
+        onOpenChangeRef.current(false);
       }
     };
 
@@ -46,7 +59,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
       document.removeEventListener('keydown', onKeyDown);
       previousActive?.focus?.();
     };
-  }, [open, onOpenChange]);
+  }, [open]); // intentionally excludes onOpenChange — use ref above instead
 
   if (!open) return null;
 

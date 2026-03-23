@@ -9,7 +9,7 @@ import {
   Activity, Award, BookOpen, FileText, FilePlus, Layers3, User,
   PenSquare, Trash2, Send,
 } from 'lucide-react';
-import { cn, formatDateTime } from '@/lib/utils';
+import { cn, formatDateTime, timeAgo } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
 import { motion } from 'framer-motion';
 
@@ -103,9 +103,18 @@ function TimelineEntry({
   isLast: boolean;
   showUser: boolean;
 }) {
+  const t = useT();
   const cfg = ACTION_CONFIG[log.action] ?? FALLBACK_ACTION;
   const ActionIcon = cfg.icon;
   const EntityIcon = ENTITY_ICONS[log.entity] ?? FileText;
+  const ACTION_LABELS: Record<string, string> = {
+    CREATE: t.activity.create,
+    SUBMIT: t.activity.submit,
+    GRADE:  t.activity.gradeAction,
+    UPDATE: t.activity.update,
+    DELETE: t.activity.delete,
+  };
+  const label = ACTION_LABELS[log.action] ?? t.activity.action;
 
   return (
     <motion.div
@@ -147,7 +156,7 @@ function TimelineEntry({
               cfg.badge, cfg.badgeDark,
             )}>
               <ActionIcon className="h-3 w-3" />
-              {cfg.label}
+              {label}
             </span>
             {/* Entity */}
             <div className="flex items-center gap-1.5 text-sm text-foreground font-medium">
@@ -157,12 +166,15 @@ function TimelineEntry({
             {/* Who (admin view) */}
             {showUser && log.user && (
               <span className="text-xs text-muted-foreground">
-                by <span className="font-medium text-foreground/80">{log.user.fullName}</span>
+                {t.activity.by} <span className="font-medium text-foreground/80">{log.user.fullName}</span>
               </span>
             )}
           </div>
-          <time className="text-[11px] text-muted-foreground/70 shrink-0 whitespace-nowrap">
-            {formatDateTime(log.createdAt)}
+          <time
+            className="text-[11px] text-muted-foreground/70 shrink-0 whitespace-nowrap"
+            title={formatDateTime(log.createdAt)}
+          >
+            {timeAgo(log.createdAt)}
           </time>
         </div>
 
@@ -174,6 +186,7 @@ function TimelineEntry({
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
 function EmptyTimeline({ isAdmin }: { isAdmin: boolean }) {
+  const t = useT();
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -184,11 +197,9 @@ function EmptyTimeline({ isAdmin }: { isAdmin: boolean }) {
       <div className="h-16 w-16 rounded-2xl bg-muted dark:bg-white/[0.04] flex items-center justify-center mb-4">
         <Activity className="h-8 w-8 text-muted-foreground/40" />
       </div>
-      <p className="font-serif font-medium text-foreground mb-1">No activity yet</p>
+      <p className="font-serif font-medium text-foreground mb-1">{t.activity.noActivity}</p>
       <p className="text-sm text-muted-foreground max-w-xs">
-        {isAdmin
-          ? 'Platform events will appear here as users interact with the system.'
-          : 'Your submissions, grades, and other events will show up here.'}
+        {isAdmin ? t.activity.noActivityAdminDescription : t.activity.noActivityUserDescription}
       </p>
     </motion.div>
   );
@@ -251,7 +262,7 @@ export default function ActivityPage() {
           </p>
         </div>
 
-        <div className="w-48">
+        <div className="w-full sm:w-48">
           <Select
             value={actionFilter}
             onChange={e => setActionFilter(e.target.value as ActionFilter)}

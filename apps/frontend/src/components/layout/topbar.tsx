@@ -38,7 +38,7 @@ function LanguageToggle() {
   const { lang, setLang, t } = useLanguage();
   const langs: Lang[] = ['en', 'ru', 'kz'];
   return (
-    <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
+    <div className="flex items-center gap-0.5 rounded-md border border-border dark:border-white/[0.08] p-0.5 dark:bg-white/[0.03]">
       {langs.map(l => (
         <button
           key={l}
@@ -65,11 +65,15 @@ export function Topbar() {
   });
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-background/95 backdrop-blur px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-background/95 backdrop-blur px-6 dark:bg-card/70 dark:backdrop-blur-md dark:border-white/[0.07]">
       <div className="flex-1 lg:ml-0 ml-12" />
       <LanguageToggle />
       <ThemeToggle />
-      <Link href="/notifications" className="relative text-muted-foreground hover:text-foreground transition-colors">
+      <Link
+        href="/notifications"
+        aria-label={t.nav.notifications}
+        className="relative text-muted-foreground hover:text-foreground transition-colors"
+      >
         <Bell className="h-5 w-5" />
         {typeof uc === 'number' && uc > 0 && (
           <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[10px] text-white flex items-center justify-center font-bold">

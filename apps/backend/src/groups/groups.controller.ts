@@ -13,8 +13,18 @@ export class GroupsController {
   @Get()
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
-    return this.svc.findAll(page ? +page : undefined, limit ? +limit : undefined);
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'year', required: false, type: Number })
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('year') year?: string,
+  ) {
+    return this.svc.findAll(
+      { page: page ? +page : undefined, limit: limit ? +limit : undefined },
+      { search, year: year ? +year : undefined },
+    );
   }
   @Get(':id') findOne(@Param('id') id: string) { return this.svc.findOne(id); }
   @Post() create(@Body() dto: CreateGroupDto) { return this.svc.create(dto); }

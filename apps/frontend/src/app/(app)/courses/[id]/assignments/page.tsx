@@ -22,7 +22,7 @@ import {
   Users, ChevronRight, Eye,
 } from 'lucide-react';
 import { useLanguage, useT } from '@/lib/i18n';
-import { motion, type Variants } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { useInView } from 'framer-motion';
 
 // ─── Status + urgency ─────────────────────────────────────────────────────────
@@ -63,13 +63,14 @@ const LIST_CONTAINER: Variants = {
 };
 const CARD_ITEM: Variants = {
   hidden: { opacity: 0, y: 14 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] as const } },
 };
 
 // ─── CommentThread ─────────────────────────────────────────────────────────────
 
 function CommentThread({ assignmentId, currentUserId }: { assignmentId: string; currentUserId: string }) {
   const qc = useQueryClient();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState('');
 
@@ -94,7 +95,7 @@ function CommentThread({ assignmentId, currentUserId }: { assignmentId: string; 
         className="flex items-center gap-2 w-full px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40 dark:hover:bg-white/[0.03] transition-colors"
       >
         <MessageSquare className="h-3.5 w-3.5" />
-        Discussion
+        {t.courseAssignments.discussion}
         {comments.length > 0 && (
           <span className="ml-1 rounded-full bg-primary/10 text-primary px-1.5 py-0 text-[10px] font-medium">
             {comments.length}
@@ -103,13 +104,15 @@ function CommentThread({ assignmentId, currentUserId }: { assignmentId: string; 
         <ChevronDown className={cn('h-3 w-3 ml-auto transition-transform duration-150', open && 'rotate-180')} />
       </button>
 
+      <AnimatePresence initial={false}>
       {open && (
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] as const }}
           className="px-4 pb-3 space-y-3"
+          style={{ overflow: 'hidden' }}
         >
           {isLoading ? (
             <div className="space-y-2 pt-1">
@@ -142,7 +145,7 @@ function CommentThread({ assignmentId, currentUserId }: { assignmentId: string; 
                       <span className="text-xs font-medium text-foreground">{c.author.fullName}</span>
                       {(c.author.role === 'TEACHER' || c.author.role === 'ADMIN') && (
                         <span className="text-[10px] bg-primary/10 text-primary px-1 py-0 rounded-full">
-                          {c.author.role === 'ADMIN' ? 'Admin' : 'Teacher'}
+                          {c.author.role === 'ADMIN' ? t.adminCrud.userRoleAdmin : t.adminCrud.userRoleTeacher}
                         </span>
                       )}
                       <span className="text-[10px] text-muted-foreground/60 ml-auto">
@@ -179,6 +182,7 @@ function CommentThread({ assignmentId, currentUserId }: { assignmentId: string; 
           </div>
         </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -297,9 +301,12 @@ function AssignmentCard({
                     : cn(cfg.badge, cfg.badgeDark),
                 )}>
                   <StatusIcon className="h-3 w-3" />
-                  {urgency === 'today' && status === 'pending' ? 'Due today' :
+                  {urgency === 'today' && status === 'pending' ? t.courseAssignments.dueToday :
                    urgency === 'soon'  && status === 'pending' ? `${daysUntilDue}d left` :
-                   cfg.label}
+                   status === 'pending' ? t.courseAssignments.open :
+                   status === 'submitted' ? t.courseAssignments.submitted :
+                   status === 'late' ? t.courseAssignments.pastDue :
+                   t.courseAssignments.graded}
                 </span>
               </div>
               {assignment.description && (
@@ -338,7 +345,7 @@ function AssignmentCard({
           {(assignment.resources?.length ?? 0) > 0 && (
             <div className="mt-3 pt-3 border-t border-border/30 dark:border-white/[0.04]">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1">
-                <BookOpen className="h-3 w-3" /> Resources
+                <BookOpen className="h-3 w-3" /> {t.courseAssignments.resources}
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {assignment.resources!.map(r => (
@@ -385,7 +392,7 @@ function AssignmentCard({
           {/* Draft indicator */}
           {submission?.status === 'DRAFT' && (
             <div className="mt-2 flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
-              <Save className="h-3 w-3" /> Draft saved — not yet submitted
+              <Save className="h-3 w-3" /> {t.courseAssignments.draftSaved}
             </div>
           )}
 
@@ -400,7 +407,7 @@ function AssignmentCard({
                 )}
                 {status === 'graded' && (
                   <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                    <Award className="h-3 w-3" />Graded
+                    <Award className="h-3 w-3" />{t.courseAssignments.graded}
                   </span>
                 )}
               </div>
@@ -410,7 +417,7 @@ function AssignmentCard({
                     <Button size="sm" variant={status === 'submitted' ? 'outline' : 'default'}
                       className="gap-1.5 h-7 text-xs" onClick={() => onSubmit(assignment.id)}>
                       <Send className="h-3 w-3" />
-                      {status === 'submitted' ? 'Resubmit' : t.courseAssignments.submit}
+                      {status === 'submitted' ? t.courseAssignments.resubmit : t.courseAssignments.submit}
                     </Button>
                   )}
                   <Button size="sm" variant="outline"
@@ -423,23 +430,31 @@ function AssignmentCard({
                   <Button size="sm" variant="outline"
                     className="gap-1.5 h-7 text-xs border-blue-200/80 text-blue-700 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/[0.08]"
                     onClick={() => onAiExplain(assignment)}
-                    title="Explain this assignment and suggest an approach"
                   >
-                    <Brain className="h-3 w-3" />Explain
+                    <Brain className="h-3 w-3" />{t.courseAssignments.explain}
                   </Button>
                 </div>
               )}
               {canC && (
-                <button
-                  onClick={() => setSubsOpen(true)}
-                  className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group"
-                >
-                  <Users className="h-3.5 w-3.5" />
-                  <span>
-                    {assignment._count?.submissions ?? 0} submission{(assignment._count?.submissions ?? 0) !== 1 ? 's' : ''}
-                  </span>
-                  <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
-                </button>
+                <div className="ml-auto flex items-center gap-3">
+                  <Link
+                    href={`/courses/${assignment.courseId}/assignments/${assignment.id}/rubric`}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <BookOpen className="h-3.5 w-3.5" />
+                    {t.rubric.rubric}
+                  </Link>
+                  <button
+                    onClick={() => setSubsOpen(true)}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group"
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                    <span>
+                      {assignment._count?.submissions ?? 0} submission{(assignment._count?.submissions ?? 0) !== 1 ? 's' : ''}
+                    </span>
+                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -453,7 +468,7 @@ function AssignmentCard({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="h-4 w-4 text-primary" />
-              Submissions — {assignment.title}
+              {t.courseAssignments.submissionsTitle} — {assignment.title}
             </DialogTitle>
           </DialogHeader>
           <div className="mt-1">
@@ -474,9 +489,9 @@ function AssignmentCard({
                 <div className="h-12 w-12 rounded-xl bg-muted dark:bg-white/[0.04] flex items-center justify-center mx-auto mb-3">
                   <Users className="h-6 w-6 text-muted-foreground/30" />
                 </div>
-                <p className="text-sm text-muted-foreground">No submissions yet.</p>
+                <p className="text-sm text-muted-foreground">{t.courseAssignments.noSubmissionsYet}</p>
                 <p className="text-xs text-muted-foreground/60 mt-1">
-                  Students haven't submitted this assignment.
+                  {t.courseAssignments.studentsHaventSubmitted}
                 </p>
               </div>
             ) : (
@@ -511,11 +526,11 @@ function AssignmentCard({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-medium truncate">
-                            {sub.student?.fullName ?? 'Unknown'}
+                            {sub.student?.fullName ?? t.courseAssignments.unknown}
                           </span>
                           {isLate && (
                             <span className="text-[10px] font-medium px-1.5 py-0 rounded-full bg-rose-50 text-rose-600 border border-rose-200/70 dark:bg-rose-500/[0.1] dark:text-rose-300 dark:border-rose-500/25">
-                              Late
+                              {t.courseAssignments.late}
                             </span>
                           )}
                         </div>
@@ -527,7 +542,7 @@ function AssignmentCard({
                               })}
                             </span>
                           ) : (
-                            <span>Not submitted</span>
+                            <span>{t.courseAssignments.notSubmitted}</span>
                           )}
                           {subStatus === 'graded' && sub.grade && (
                             <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
@@ -548,14 +563,14 @@ function AssignmentCard({
                             ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/[0.1] dark:text-blue-300 dark:border-blue-500/25'
                             : 'bg-muted text-muted-foreground border-border',
                         )}>
-                          {subStatus === 'graded' ? 'Graded' : subStatus === 'submitted' ? 'Submitted' : 'Draft'}
+                          {subStatus === 'graded' ? t.courseAssignments.graded : subStatus === 'submitted' ? t.courseAssignments.submitted : t.courseAssignments.draft}
                         </span>
                         <Link
                           href={`/courses/${assignment.courseId}/assignments/${assignment.id}/submissions/${sub.id}`}
                           onClick={() => setSubsOpen(false)}
                           className="flex items-center gap-1 text-xs font-medium text-primary hover:underline opacity-0 group-hover:opacity-100 transition-opacity"
                         >
-                          <Eye className="h-3 w-3" /> Review
+                          <Eye className="h-3 w-3" /> {t.courseAssignments.review}
                         </Link>
                       </div>
                     </div>
@@ -670,7 +685,11 @@ function TimelineNode({
                 : cn(STATUS_CONFIG[status].badge, STATUS_CONFIG[status].badgeDark),
             )}>
               <StatusIcon className="h-2.5 w-2.5" />
-              {urgency === 'today' && status === 'pending' ? 'Today' : STATUS_CONFIG[status].label}
+              {urgency === 'today' && status === 'pending' ? t.courseAssignments.today :
+               status === 'pending' ? t.courseAssignments.open :
+               status === 'submitted' ? t.courseAssignments.submitted :
+               status === 'late' ? t.courseAssignments.pastDue :
+               t.courseAssignments.graded}
             </span>
           </div>
 
@@ -699,7 +718,7 @@ function TimelineNode({
                 <Button size="sm" variant={status === 'submitted' ? 'outline' : 'default'}
                   className="h-6 text-[11px] gap-1" onClick={() => onSubmit(assignment.id)}>
                   <Send className="h-2.5 w-2.5" />
-                  {status === 'submitted' ? 'Resubmit' : t.courseAssignments.submit}
+                  {status === 'submitted' ? t.courseAssignments.resubmit : t.courseAssignments.submit}
                 </Button>
               )}
               <Button size="sm" variant="outline"
@@ -710,7 +729,7 @@ function TimelineNode({
               <Button size="sm" variant="outline"
                 className="h-6 text-[11px] gap-1 border-blue-200/80 text-blue-700 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/[0.08]"
                 onClick={() => onAiExplain(assignment)}>
-                <Brain className="h-2.5 w-2.5" />Explain
+                <Brain className="h-2.5 w-2.5" />{t.courseAssignments.explain}
               </Button>
             </div>
           )}
@@ -786,6 +805,12 @@ function KanbanView({
     const s = getAssignmentStatus(a, submissions[a.id]);
     grouped[s].push(a);
   });
+  const colLabels: Record<AssignmentStatus, string> = {
+    pending: t.courseAssignments.tabTodo,
+    late: t.courseAssignments.overdue,
+    submitted: t.courseAssignments.submitted,
+    graded: t.courseAssignments.graded,
+  };
 
   return (
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 pt-1">
@@ -793,7 +818,7 @@ function KanbanView({
         <div key={col.key} className="flex flex-col gap-2">
           {/* Column header */}
           <div className={cn('flex items-center justify-between rounded-lg px-3 py-2', col.bg)}>
-            <span className={cn('text-xs font-semibold', col.color)}>{col.label}</span>
+            <span className={cn('text-xs font-semibold', col.color)}>{colLabels[col.key]}</span>
             <span className={cn('text-xs font-bold tabular-nums', col.color)}>{grouped[col.key].length}</span>
           </div>
           {/* Cards */}
@@ -805,7 +830,7 @@ function KanbanView({
           >
             {grouped[col.key].length === 0 ? (
               <div className="rounded-lg border border-dashed border-border/40 dark:border-white/[0.06] py-6 text-center">
-                <p className="text-xs text-muted-foreground/50">Empty</p>
+                <p className="text-xs text-muted-foreground/50">{t.courseAssignments.emptyColumn}</p>
               </div>
             ) : (
               grouped[col.key].map(a => {
@@ -833,7 +858,7 @@ function KanbanView({
                         urgency === 'today' ? 'text-amber-500' :
                         'text-muted-foreground/60',
                       )}>
-                        {col.key === 'late' ? 'Overdue' : col.key === 'submitted' || col.key === 'graded' ? '✓' : daysLeft > 0 ? `${daysLeft}d` : 'Today'}
+                        {col.key === 'late' ? t.courseAssignments.overdue : col.key === 'submitted' || col.key === 'graded' ? '✓' : daysLeft > 0 ? `${daysLeft}d` : t.courseAssignments.today}
                       </span>
                       <span className="text-[10px] text-muted-foreground/60">{a.maxScore}pts</span>
                       {col.key === 'graded' && submission?.grade && (
@@ -848,7 +873,7 @@ function KanbanView({
                           onClick={() => onSubmit(a.id)}
                           className="flex-1 text-[10px] rounded border border-border/50 py-1 hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors text-center"
                         >
-                          {col.key === 'submitted' ? 'Resubmit' : 'Submit'}
+                          {col.key === 'submitted' ? t.courseAssignments.resubmit : t.courseAssignments.submit}
                         </button>
                       )}
                       <button
@@ -870,6 +895,7 @@ function KanbanView({
 }
 
 function EmptyState({ canCreate, onCreate }: { canCreate: boolean; onCreate: () => void }) {
+  const t = useT();
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -880,13 +906,13 @@ function EmptyState({ canCreate, onCreate }: { canCreate: boolean; onCreate: () 
       <div className="h-14 w-14 rounded-2xl bg-muted dark:bg-white/[0.04] flex items-center justify-center mb-4">
         <ClipboardList className="h-7 w-7 text-muted-foreground" />
       </div>
-      <p className="font-serif font-medium text-foreground mb-1">No assignments yet</p>
+      <p className="font-serif font-medium text-foreground mb-1">{t.courseAssignments.noAssignments}</p>
       <p className="text-sm text-muted-foreground max-w-xs">
-        {canCreate ? 'Create your first assignment to get started.' : "Your instructor hasn't posted any assignments yet."}
+        {canCreate ? t.courseAssignments.noAssignmentsTeacher : t.courseAssignments.noAssignmentsStudent}
       </p>
       {canCreate && (
         <Button onClick={onCreate} size="sm" className="mt-5 gap-2">
-          <Plus className="h-4 w-4" /> Create Assignment
+          <Plus className="h-4 w-4" /> {t.courseAssignments.createAssignment}
         </Button>
       )}
     </motion.div>
@@ -985,7 +1011,7 @@ export default function AssignmentsPage() {
   const draft = useMutation({
     mutationFn: ({ aid, d }: { aid: string; d: any }) => api.post(`/assignments/${aid}/save-draft`, d),
     onSuccess: () => {
-      toast({ title: 'Draft saved' });
+      toast({ title: t.courseAssignments.draftSaved });
       qc.invalidateQueries({ queryKey: ['my-subs', id] });
     },
     onError: (e: any) => toast({ title: t.common.error, description: e.message, variant: 'destructive' }),
@@ -1076,13 +1102,13 @@ export default function AssignmentsPage() {
           <h2 className="font-serif text-lg font-semibold text-foreground">{t.courseAssignments.title}</h2>
           {isStu && statusCounts && assignments.length > 0 && (
             <p className="text-xs text-muted-foreground mt-0.5">
-              {statusCounts.pending > 0 && <span className="text-emerald-600 dark:text-emerald-400 font-medium">{statusCounts.pending} open</span>}
+              {statusCounts.pending > 0 && <span className="text-emerald-600 dark:text-emerald-400 font-medium">{statusCounts.pending} {t.courseAssignments.open.toLowerCase()}</span>}
               {statusCounts.pending > 0 && (statusCounts.late > 0 || statusCounts.submitted > 0 || statusCounts.graded > 0) && <span className="mx-1.5 opacity-40">·</span>}
-              {statusCounts.submitted > 0 && <span className="text-blue-600 dark:text-blue-400">{statusCounts.submitted} submitted</span>}
+              {statusCounts.submitted > 0 && <span className="text-blue-600 dark:text-blue-400">{statusCounts.submitted} {t.courseAssignments.submitted.toLowerCase()}</span>}
               {statusCounts.submitted > 0 && (statusCounts.late > 0 || statusCounts.graded > 0) && <span className="mx-1.5 opacity-40">·</span>}
-              {statusCounts.late > 0 && <span className="text-rose-600 dark:text-rose-400 font-medium">{statusCounts.late} late</span>}
+              {statusCounts.late > 0 && <span className="text-rose-600 dark:text-rose-400 font-medium">{statusCounts.late} {t.courseAssignments.late.toLowerCase()}</span>}
               {statusCounts.late > 0 && statusCounts.graded > 0 && <span className="mx-1.5 opacity-40">·</span>}
-              {statusCounts.graded > 0 && <span className="text-amber-600 dark:text-amber-400">{statusCounts.graded} graded</span>}
+              {statusCounts.graded > 0 && <span className="text-amber-600 dark:text-amber-400">{statusCounts.graded} {t.courseAssignments.graded.toLowerCase()}</span>}
             </p>
           )}
         </div>
@@ -1101,7 +1127,7 @@ export default function AssignmentsPage() {
                 )}
               >
                 <List className="h-3.5 w-3.5" />
-                Cards
+                {t.courseAssignments.viewCards}
               </button>
               <div className="w-px h-full bg-border/50 dark:bg-white/[0.08]" />
               <button
@@ -1114,7 +1140,7 @@ export default function AssignmentsPage() {
                 )}
               >
                 <GitBranch className="h-3.5 w-3.5" />
-                Timeline
+                {t.courseAssignments.viewTimeline}
               </button>
               <div className="w-px h-full bg-border/50 dark:bg-white/[0.08]" />
               <button
@@ -1127,7 +1153,7 @@ export default function AssignmentsPage() {
                 )}
               >
                 <LayoutGrid className="h-3.5 w-3.5" />
-                Board
+                {t.courseAssignments.viewBoard}
               </button>
             </div>
           )}
@@ -1210,7 +1236,7 @@ export default function AssignmentsPage() {
 
           {/* Resource files */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Attach Resources <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Label className="text-xs">{t.courseAssignments.attachResources}</Label>
             <div
               onDragOver={e => { e.preventDefault(); setResIsDrag(true); }}
               onDragLeave={() => setResIsDrag(false)}
@@ -1271,10 +1297,10 @@ export default function AssignmentsPage() {
           {/* Tab switcher */}
           <div className="grid grid-cols-4 gap-1 rounded-lg bg-muted/50 dark:bg-white/[0.04] p-1">
             {([
-              { k: 'text', label: 'Text',  Icon: AlignLeft    },
-              { k: 'file', label: 'Files', Icon: Paperclip    },
-              { k: 'link', label: 'Link',  Icon: ExternalLink },
-              { k: 'code', label: 'Code',  Icon: Code2        },
+              { k: 'text', label: t.courseAssignments.tabText,  Icon: AlignLeft    },
+              { k: 'file', label: t.courseAssignments.tabFiles, Icon: Paperclip    },
+              { k: 'link', label: t.courseAssignments.tabLink,  Icon: ExternalLink },
+              { k: 'code', label: t.courseAssignments.tabCode,  Icon: Code2        },
             ] as const).map(({ k, label, Icon }) => (
               <button
                 key={k}
@@ -1303,7 +1329,7 @@ export default function AssignmentsPage() {
               <Label className="text-xs">{t.courseAssignments.yourAnswer}</Label>
               <Textarea
                 value={sT} onChange={e => sST(e.target.value)}
-                rows={6} placeholder="Write your answer here…"
+                rows={6} placeholder={t.courseAssignments.writeAnswerPlaceholder}
                 className="resize-none text-sm"
               />
               <p className="text-right text-[11px] text-muted-foreground">{sT.length} chars</p>
@@ -1313,7 +1339,7 @@ export default function AssignmentsPage() {
           {/* Files panel — multi-file */}
           {subTab === 'file' && (
             <div className="space-y-3">
-              <Label className="text-xs">Attach Files</Label>
+              <Label className="text-xs">{t.courseAssignments.attachFiles}</Label>
 
               {/* Drop zone */}
               <div
@@ -1428,10 +1454,10 @@ export default function AssignmentsPage() {
                 <p className="text-xs text-muted-foreground">GitHub repo, Google Doc, Figma, or any hosted resource</p>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Notes (optional)</Label>
+                <Label className="text-xs">{t.courseAssignments.notesOptional}</Label>
                 <Textarea
                   value={sT} onChange={e => sST(e.target.value)}
-                  rows={3} placeholder="Describe your work or add context…"
+                  rows={3} placeholder={t.courseAssignments.contextPlaceholder}
                   className="resize-none text-sm"
                 />
               </div>
@@ -1442,7 +1468,7 @@ export default function AssignmentsPage() {
           {subTab === 'code' && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs">Code Snippet</Label>
+                <Label className="text-xs">{t.courseAssignments.codeSnippet}</Label>
                 <span className="font-mono text-[10px] text-muted-foreground/60 bg-muted/40 px-2 py-0.5 rounded">plain text</span>
               </div>
               <Textarea
@@ -1468,7 +1494,7 @@ export default function AssignmentsPage() {
                   ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   : <Save className="h-3.5 w-3.5" />
                 }
-                Save Draft
+                {t.courseAssignments.saveDraft}
               </Button>
             )}
             <Button
@@ -1567,7 +1593,7 @@ export default function AssignmentsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2.5">
               <Brain className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              {aiExplainAssignment?.title ?? 'Assignment Explanation'}
+              {aiExplainAssignment?.title ?? t.courseAssignments.assignmentExplanation}
             </DialogTitle>
           </DialogHeader>
 

@@ -3,14 +3,14 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMe } from '@/hooks/use-auth';
 import { api } from '@/lib/api';
-import { useT } from '@/lib/i18n';
+import { useLanguage, type Lang } from '@/lib/i18n';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/form-elements';
-import { KeyRound, Mail, ShieldCheck, UserCircle2, Users } from 'lucide-react';
+import { Globe, KeyRound, Mail, ShieldCheck, UserCircle2, Users } from 'lucide-react';
 import type { User } from '@/lib/types';
 
 const roleVariant = {
@@ -22,7 +22,7 @@ const roleVariant = {
 export default function ProfilePage() {
   const { data: user } = useMe();
   const qc = useQueryClient();
-  const t = useT();
+  const { lang, setLang, t } = useLanguage();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -43,7 +43,7 @@ export default function ProfilePage() {
   };
 
   const updateProfile = useMutation({
-    mutationFn: (payload: { fullName: string; email: string }) => api.patch<User>('/me/profile', payload),
+    mutationFn: (payload: { fullName: string; email: string; preferredLang?: string }) => api.patch<User>('/me/profile', payload),
     onSuccess: async data => {
       await qc.invalidateQueries({ queryKey: ['me'] });
       qc.setQueryData(['me'], data);
@@ -57,6 +57,12 @@ export default function ProfilePage() {
       });
     },
   });
+
+  const saveLang = (l: Lang) => {
+    setLang(l);
+    api.patch('/me/profile', { preferredLang: l }).catch(() => null);
+    toast({ title: t.profile.langSaved });
+  };
 
   const changePassword = useMutation({
     mutationFn: (payload: { currentPassword: string; newPassword: string }) => api.patch('/me/password', payload),
@@ -210,6 +216,39 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            {t.profile.language}
+          </CardTitle>
+          <CardDescription>{t.profile.languageDesc}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3">
+            {([
+              { code: 'en' as Lang, label: t.profile.langEn, flag: '🇬🇧' },
+              { code: 'ru' as Lang, label: t.profile.langRu, flag: '🇷🇺' },
+              { code: 'kz' as Lang, label: t.profile.langKz, flag: '🇰🇿' },
+            ] as const).map(({ code, label, flag }) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => saveLang(code)}
+                className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  lang === code
+                    ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                    : 'border-input bg-background hover:bg-muted'
+                }`}
+              >
+                <span className="text-base">{flag}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

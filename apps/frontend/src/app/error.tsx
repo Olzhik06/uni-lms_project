@@ -38,14 +38,14 @@ export default function Error({
         </>
       }
       details={
-        error.digest ? (
-          <div className="rounded-lg border border-border/70 bg-muted/60 px-4 py-3 text-left">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t.systemPages.technicalDetails}
-            </p>
-            <p className="mt-2 text-sm font-mono text-foreground/80">{error.digest}</p>
-          </div>
-        ) : null
+        <div className="rounded-lg border border-border/70 bg-muted/60 px-4 py-3 text-left space-y-1">
+          {error.message && (
+            <p className="mt-1 text-xs font-mono text-destructive/80 break-all">{error.message}</p>
+          )}
+          {error.digest && (
+            <p className="text-xs font-mono text-foreground/60">{error.digest}</p>
+          )}
+        </div>
       }
     />
   );

@@ -289,23 +289,23 @@ export default function DashboardPage() {
   const quickLinks =
     isAdmin
       ? [
-          { href: '/admin',         label: t.admin.title,       icon: Shield,          description: 'System overview & user management'   },
-          { href: '/courses',       label: t.nav.courses,       icon: BookOpen,        description: 'Browse and manage all courses'        },
-          { href: '/activity',      label: t.nav.activity,      icon: LayoutDashboard, description: 'View recent platform events'          },
-          { href: '/notifications', label: t.nav.notifications, icon: Bell,            description: 'Check system updates'                },
+          { href: '/admin',         label: t.admin.title,       icon: Shield,          description: t.dashboard.quickLinkAdminDesc           },
+          { href: '/courses',       label: t.nav.courses,       icon: BookOpen,        description: t.dashboard.quickLinkCoursesAdminDesc     },
+          { href: '/activity',      label: t.nav.activity,      icon: LayoutDashboard, description: t.dashboard.quickLinkActivityAdminDesc    },
+          { href: '/notifications', label: t.nav.notifications, icon: Bell,            description: t.dashboard.quickLinkNotifAdminDesc       },
         ]
       : isTeacher
       ? [
-          { href: '/courses',  label: t.nav.courses,   icon: BookOpen,        description: 'Your teaching roster'       },
-          { href: '/schedule', label: t.nav.schedule,  icon: Calendar,        description: 'Weekly class timetable'     },
-          { href: '/activity', label: t.nav.activity,  icon: LayoutDashboard, description: 'Recent student activity'    },
-          { href: '/search',   label: t.nav.search,    icon: Search,          description: 'Find students or content'   },
+          { href: '/courses',  label: t.nav.courses,   icon: BookOpen,        description: t.dashboard.quickLinkCoursesTeacherDesc  },
+          { href: '/schedule', label: t.nav.schedule,  icon: Calendar,        description: t.dashboard.quickLinkScheduleTeacherDesc },
+          { href: '/activity', label: t.nav.activity,  icon: LayoutDashboard, description: t.dashboard.quickLinkActivityTeacherDesc },
+          { href: '/search',   label: t.nav.search,    icon: Search,          description: t.dashboard.quickLinkSearchTeacherDesc   },
         ]
       : [
-          { href: '/courses',       label: t.nav.courses,       icon: BookOpen, description: 'Browse your enrolled courses' },
-          { href: '/schedule',      label: t.nav.schedule,      icon: Calendar, description: 'Weekly class schedule'        },
-          { href: '/calendar',      label: t.nav.calendar,      icon: Calendar, description: 'Upcoming dates & events'      },
-          { href: '/notifications', label: t.nav.notifications, icon: Bell,     description: 'Check latest updates'         },
+          { href: '/courses',       label: t.nav.courses,       icon: BookOpen, description: t.dashboard.quickLinkCoursesStudentDesc  },
+          { href: '/schedule',      label: t.nav.schedule,      icon: Calendar, description: t.dashboard.quickLinkScheduleStudentDesc },
+          { href: '/calendar',      label: t.nav.calendar,      icon: Calendar, description: t.dashboard.quickLinkCalendarStudentDesc },
+          { href: '/notifications', label: t.nav.notifications, icon: Bell,     description: t.dashboard.quickLinkNotifStudentDesc    },
         ];
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -408,24 +408,24 @@ export default function DashboardPage() {
                       <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
                       <div>
                         <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">{t.dashboard.noUpcoming}</p>
-                        <p className="text-xs text-emerald-700/70 dark:text-emerald-400/70">Check back once your instructors post assignments.</p>
+                        <p className="text-xs text-emerald-700/70 dark:text-emerald-400/70">{t.dashboard.noUpcomingDesc}</p>
                       </div>
                     </div>
                     {[
-                      { title: 'SQL Optimization Task', course: 'Database Systems', due: 'Tomorrow', urgent: true },
-                      { title: 'API Design Report',     course: 'Software Engineering', due: 'in 4 days', urgent: false },
+                      { title: 'SQL Optimization Task', course: 'Database Systems', due: t.dashboard.demoTomorrow, urgent: true },
+                      { title: 'API Design Report',     course: 'Software Engineering', due: t.dashboard.demoInDays, urgent: false },
                     ].map((item, i) => (
                       <div key={i} className="flex items-start gap-3 rounded-lg border border-dashed border-border/40 dark:border-white/[0.05] p-3 opacity-35 select-none pointer-events-none">
                         <div className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${item.urgent ? 'bg-amber-400' : 'bg-emerald-400'}`} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
-                          <p className="text-xs text-muted-foreground">{item.course} · Due {item.due}</p>
+                          <p className="text-xs text-muted-foreground">{item.course} · {t.courseLayout.dueOn} {item.due}</p>
                         </div>
                         <span className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground/40 shrink-0 mt-1">demo</span>
                       </div>
                     ))}
                     <div className="pt-1 text-center">
-                      <Link href="/courses" className="text-xs text-primary hover:underline">Browse your courses →</Link>
+                      <Link href="/courses" className="text-xs text-primary hover:underline">{t.dashboard.browseCourses}</Link>
                     </div>
                   </div>
                 ) : (
@@ -449,11 +449,11 @@ export default function DashboardPage() {
                     <p className="text-sm text-muted-foreground">{t.dashboard.noClasses}</p>
                     {nextClassItem ? (
                       <p className="text-xs text-muted-foreground/70">
-                        Next: <span className="font-medium text-foreground/60">{nextClassItem.course?.title}</span>
-                        {' · '}{new Intl.DateTimeFormat('en', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(nextClassItem.startsAt))}
+                        {t.dashboard.nextClass} <span className="font-medium text-foreground/60">{nextClassItem.course?.title}</span>
+                        {' · '}{new Intl.DateTimeFormat(lang === 'kz' ? 'kk' : lang, { weekday: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(nextClassItem.startsAt))}
                       </p>
                     ) : (
-                      <Link href="/schedule" className="text-xs text-primary/80 hover:text-primary hover:underline">View full schedule →</Link>
+                      <Link href="/schedule" className="text-xs text-primary/80 hover:text-primary hover:underline">{t.dashboard.viewFullSchedule}</Link>
                     )}
                   </div>
                 ) : (
@@ -472,7 +472,7 @@ export default function DashboardPage() {
                 {grades.length === 0 ? (
                   <div className="space-y-2">
                     <p className="text-xs text-center text-muted-foreground py-2">
-                      Grades appear here once your instructor reviews your work.
+                      {t.dashboard.noGradesDesc}
                     </p>
                     {[
                       { title: 'Lab Exercise #1', score: 87, max: 100 },
@@ -484,7 +484,7 @@ export default function DashboardPage() {
                       </div>
                     ))}
                     <div className="pt-1 text-center">
-                      <Link href="/grades" className="text-xs text-primary hover:underline">View all grades →</Link>
+                      <Link href="/grades" className="text-xs text-primary hover:underline">{t.dashboard.viewAllGrades}</Link>
                     </div>
                   </div>
                 ) : (
@@ -558,11 +558,11 @@ export default function DashboardPage() {
                     <p className="text-sm text-muted-foreground">{t.dashboard.noClasses}</p>
                     {nextClassItem ? (
                       <p className="text-xs text-muted-foreground/70">
-                        Next: <span className="font-medium text-foreground/60">{nextClassItem.course?.title}</span>
-                        {' · '}{new Intl.DateTimeFormat('en', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(nextClassItem.startsAt))}
+                        {t.dashboard.nextClass} <span className="font-medium text-foreground/60">{nextClassItem.course?.title}</span>
+                        {' · '}{new Intl.DateTimeFormat(lang === 'kz' ? 'kk' : lang, { weekday: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(nextClassItem.startsAt))}
                       </p>
                     ) : (
-                      <Link href="/schedule" className="text-xs text-primary/80 hover:text-primary hover:underline">View full schedule →</Link>
+                      <Link href="/schedule" className="text-xs text-primary/80 hover:text-primary hover:underline">{t.dashboard.viewFullSchedule}</Link>
                     )}
                   </div>
                 ) : (
@@ -706,11 +706,11 @@ export default function DashboardPage() {
                     <p className="text-sm text-muted-foreground">{t.dashboard.noClasses}</p>
                     {nextClassItem ? (
                       <p className="text-xs text-muted-foreground/70">
-                        Next: <span className="font-medium text-foreground/60">{nextClassItem.course?.title}</span>
-                        {' · '}{new Intl.DateTimeFormat('en', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(nextClassItem.startsAt))}
+                        {t.dashboard.nextClass} <span className="font-medium text-foreground/60">{nextClassItem.course?.title}</span>
+                        {' · '}{new Intl.DateTimeFormat(lang === 'kz' ? 'kk' : lang, { weekday: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(nextClassItem.startsAt))}
                       </p>
                     ) : (
-                      <Link href="/schedule" className="text-xs text-primary/80 hover:text-primary hover:underline">View full schedule →</Link>
+                      <Link href="/schedule" className="text-xs text-primary/80 hover:text-primary hover:underline">{t.dashboard.viewFullSchedule}</Link>
                     )}
                   </div>
                 ) : (

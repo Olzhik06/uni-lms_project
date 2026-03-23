@@ -7,24 +7,24 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, Skeleton } from '@/components/ui/form-elements';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin, X } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import { useLanguage, useT } from '@/lib/i18n';
 
 const TYPE_COLORS: Record<string, string> = {
-  LECTURE: 'bg-blue-100 border-blue-300 text-blue-900',
-  PRACTICE: 'bg-green-100 border-green-300 text-green-900',
-  LAB: 'bg-purple-100 border-purple-300 text-purple-900',
-  EXAM: 'bg-red-100 border-red-300 text-red-900',
+  LECTURE: 'bg-blue-100 border-blue-300 text-blue-900 dark:bg-blue-500/[0.15] dark:border-blue-500/30 dark:text-blue-300',
+  PRACTICE: 'bg-green-100 border-green-300 text-green-900 dark:bg-green-500/[0.15] dark:border-green-500/30 dark:text-green-300',
+  LAB: 'bg-purple-100 border-purple-300 text-purple-900 dark:bg-purple-500/[0.15] dark:border-purple-500/30 dark:text-purple-300',
+  EXAM: 'bg-red-100 border-red-300 text-red-900 dark:bg-red-500/[0.15] dark:border-red-500/30 dark:text-red-300',
 };
 
 const COURSE_COLORS = [
-  'bg-sky-50 border-sky-300',
-  'bg-emerald-50 border-emerald-300',
-  'bg-violet-50 border-violet-300',
-  'bg-amber-50 border-amber-300',
-  'bg-pink-50 border-pink-300',
-  'bg-teal-50 border-teal-300',
+  'bg-sky-50 border-sky-300 dark:bg-sky-500/[0.1] dark:border-sky-500/30',
+  'bg-emerald-50 border-emerald-300 dark:bg-emerald-500/[0.1] dark:border-emerald-500/30',
+  'bg-violet-50 border-violet-300 dark:bg-violet-500/[0.1] dark:border-violet-500/30',
+  'bg-amber-50 border-amber-300 dark:bg-amber-500/[0.1] dark:border-amber-500/30',
+  'bg-pink-50 border-pink-300 dark:bg-pink-500/[0.1] dark:border-pink-500/30',
+  'bg-teal-50 border-teal-300 dark:bg-teal-500/[0.1] dark:border-teal-500/30',
 ];
 
 const LOCALES = {
@@ -127,6 +127,12 @@ export default function SchedulePage() {
             <option value="">{t.schedule.allCourses}</option>
             {coursesInView.map(item => <option key={item.courseId} value={item.courseId}>{item.course?.code} - {item.course?.title}</option>)}
           </Select>
+          {(filterDay || filterCourse) && (
+            <Button variant="ghost" size="sm" onClick={() => { setFilterDay(''); setFilterCourse(''); }} className="h-9 gap-1.5 text-muted-foreground hover:text-foreground">
+              <X className="h-3.5 w-3.5" />
+              {t.schedule.clearFilters}
+            </Button>
+          )}
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -156,7 +162,17 @@ export default function SchedulePage() {
           ) : !filtered.length ? (
             <div className="py-12 text-center text-muted-foreground">
               <CalendarDays className="mx-auto mb-3 h-10 w-10 opacity-30" />
-              <p className="text-sm font-medium">{t.schedule.noClasses}</p>
+              <p className="text-sm font-medium">
+                {(filterDay || filterCourse) ? t.schedule.noClassesFilter : t.schedule.noClasses}
+              </p>
+              {(filterDay || filterCourse) && (
+                <button
+                  onClick={() => { setFilterDay(''); setFilterCourse(''); }}
+                  className="mt-2 text-xs text-primary hover:underline"
+                >
+                  {t.schedule.clearFilters}
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">

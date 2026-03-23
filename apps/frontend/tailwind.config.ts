@@ -23,18 +23,36 @@ const config: Config = {
         serif: ['var(--font-serif)', 'Georgia', 'Cambria', 'serif'],
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
       },
-      borderRadius: { lg: 'var(--radius)', md: 'calc(var(--radius) - 2px)', sm: 'calc(var(--radius) - 4px)' },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
+      },
       boxShadow: {
-        card: '0 1px 3px 0 rgb(0 0 0 / 0.06)',
-        lift: '0 4px 16px 0 rgb(0 0 0 / 0.08)',
+        // Light theme
+        card: '0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.04)',
+        lift: '0 4px 16px -4px rgb(0 0 0 / 0.08), 0 2px 6px -2px rgb(0 0 0 / 0.04)',
+        // Dark theme — teal glow (uses --ring CSS var which maps to primary)
+        'glow-sm': '0 0 12px -3px hsl(var(--ring) / 0.45)',
+        'glow':    '0 0 22px -5px hsl(var(--ring) / 0.4)',
+        'glow-lg': '0 0 40px -8px hsl(var(--ring) / 0.35)',
+        'glass':   'inset 0 1px 0 0 rgb(255 255 255 / 0.06), 0 1px 3px 0 rgb(0 0 0 / 0.3)',
       },
       keyframes: {
-        shimmer: {
-          '100%': { transform: 'translateX(200%)' },
+        shimmer: { '100%': { transform: 'translateX(200%)' } },
+        'pulse-glow': {
+          '0%, 100%': { opacity: '0.3', transform: 'scale(1)' },
+          '50%':       { opacity: '0.7', transform: 'scale(1.02)' },
+        },
+        'scan-line': {
+          '0%':   { transform: 'translateY(-100%)' },
+          '100%': { transform: 'translateY(100vh)' },
         },
       },
       animation: {
-        shimmer: 'shimmer 1.6s infinite',
+        shimmer:      'shimmer 1.6s infinite',
+        'pulse-glow': 'pulse-glow 2.8s ease-in-out infinite',
+        'scan-line':  'scan-line 5s linear infinite',
       },
     },
   },

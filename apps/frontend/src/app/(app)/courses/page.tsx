@@ -71,10 +71,10 @@ export default function CoursesPage() {
             <p className="font-serif font-semibold text-lg text-foreground">{t.courses.notFound}</p>
             <p className="text-sm text-muted-foreground mt-1 max-w-xs">
               {user?.role === 'STUDENT'
-                ? 'You haven\'t been enrolled in any courses yet. Contact your instructor or administrator.'
+                ? t.courses.notEnrolledDesc
                 : user?.role === 'TEACHER'
-                ? 'You haven\'t been assigned to any courses yet. Ask your administrator to add you as a course instructor.'
-                : 'No courses have been created yet. Add the first course to get started.'}
+                ? t.courses.notAssignedDesc
+                : t.courses.noCoursesDesc}
             </p>
           </div>
           {user?.role === 'ADMIN' && (
@@ -83,12 +83,12 @@ export default function CoursesPage() {
               className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
             >
               <BookOpen className="h-3.5 w-3.5" />
-              Create first course
+              {t.courses.createFirst}
             </Link>
           )}
           {user?.role !== 'ADMIN' && (
             <Link href="/search" className="text-sm text-primary hover:underline">
-              Search for courses →
+              {t.courses.searchForCourses}
             </Link>
           )}
         </div>

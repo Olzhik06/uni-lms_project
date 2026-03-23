@@ -34,9 +34,9 @@ export default function AdminPage() {
       {isError && (
         <div className="flex items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/[0.08] px-4 py-3">
           <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
-          <p className="text-sm text-rose-700 dark:text-rose-300 flex-1">Failed to load stats.</p>
+          <p className="text-sm text-rose-700 dark:text-rose-300 flex-1">{t.admin.failedStats}</p>
           <Button size="sm" variant="outline" onClick={() => refetch()} className="gap-1.5 h-7 text-xs">
-            <RefreshCw className="h-3 w-3" /> Retry
+            <RefreshCw className="h-3 w-3" /> {t.admin.retry}
           </Button>
         </div>
       )}
@@ -97,9 +97,8 @@ export default function AdminPage() {
             l: t.admin.manageUsers,
             h: '/admin/users',
             icon: Users,
-            desc: 'Create, edit, and manage student and teacher accounts',
+            desc: t.admin.manageUsersDesc,
             stat: stats?.users.total,
-            statLabel: 'total users',
             iconColor: 'text-blue-600 dark:text-blue-400',
             iconBg: 'bg-blue-50 dark:bg-blue-500/[0.12]',
           },
@@ -107,9 +106,8 @@ export default function AdminPage() {
             l: t.admin.manageCourses,
             h: '/admin/courses',
             icon: BookOpen,
-            desc: 'Add courses, assign teachers, manage semesters',
+            desc: t.admin.manageCoursesDesc,
             stat: stats?.courses,
-            statLabel: 'courses',
             iconColor: 'text-purple-600 dark:text-purple-400',
             iconBg: 'bg-purple-50 dark:bg-purple-500/[0.12]',
           },
@@ -117,9 +115,8 @@ export default function AdminPage() {
             l: t.admin.manageGroups,
             h: '/admin/groups',
             icon: Layers,
-            desc: 'Organize students into academic groups',
+            desc: t.admin.manageGroupsDesc,
             stat: undefined,
-            statLabel: 'groups',
             iconColor: 'text-amber-600 dark:text-amber-400',
             iconBg: 'bg-amber-50 dark:bg-amber-500/[0.12]',
           },
@@ -127,9 +124,8 @@ export default function AdminPage() {
             l: t.admin.manageEnrollments,
             h: '/admin/enrollments',
             icon: UserPlus,
-            desc: 'Enroll students and assign roles in courses',
+            desc: t.admin.manageEnrollmentsDesc,
             stat: stats?.enrollments,
-            statLabel: 'enrollments',
             iconColor: 'text-emerald-600 dark:text-emerald-400',
             iconBg: 'bg-emerald-50 dark:bg-emerald-500/[0.12]',
           },

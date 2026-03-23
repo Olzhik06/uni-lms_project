@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import { getAssignmentEmailContent, getGradeEmailContent, getDeadlineReminderEmailContent } from '../common/user-content';
 
 @Injectable()
 export class MailService {
@@ -18,25 +19,31 @@ export class MailService {
     });
   }
 
-  async sendAssignmentCreated(to: string, assignmentTitle: string, courseName: string, dueAt: Date) {
+  async sendAssignmentCreated(to: string, assignmentTitle: string, courseName: string, dueAt: Date, preferredLang?: string | null) {
     if (!process.env.SMTP_USER) {
       this.logger.debug(`[EMAIL SKIPPED] Assignment created: ${assignmentTitle} → ${to}`);
       return;
     }
-    await this.send(to, `New Assignment: ${assignmentTitle}`,
-      `<p>A new assignment <strong>${assignmentTitle}</strong> has been added to <strong>${courseName}</strong>.</p>
-       <p>Due: ${dueAt.toLocaleDateString()}</p>`);
+    const content = getAssignmentEmailContent(assignmentTitle, courseName, dueAt, preferredLang);
+    await this.send(to, content.subject, content.html);
   }
 
-  async sendGradePublished(to: string, assignmentTitle: string, score: number, maxScore: number, feedback?: string | null) {
+  async sendGradePublished(to: string, assignmentTitle: string, score: number, maxScore: number, feedback?: string | null, preferredLang?: string | null) {
     if (!process.env.SMTP_USER) {
       this.logger.debug(`[EMAIL SKIPPED] Grade published for ${assignmentTitle} → ${to}`);
       return;
     }
-    await this.send(to, `Grade Published: ${assignmentTitle}`,
-      `<p>Your assignment <strong>${assignmentTitle}</strong> has been graded.</p>
-       <p>Score: <strong>${score} / ${maxScore}</strong></p>
-       ${feedback ? `<p>Feedback: ${feedback}</p>` : ''}`);
+    const content = getGradeEmailContent(assignmentTitle, score, maxScore, feedback, preferredLang);
+    await this.send(to, content.subject, content.html);
+  }
+
+  async sendDeadlineReminder(to: string, assignmentTitle: string, courseTitle: string, dueAt: Date, hoursLeft: number, preferredLang?: string | null) {
+    if (!process.env.SMTP_USER) {
+      this.logger.debug(`[EMAIL SKIPPED] Deadline ${hoursLeft}h reminder: ${assignmentTitle} → ${to}`);
+      return;
+    }
+    const content = getDeadlineReminderEmailContent(assignmentTitle, courseTitle, dueAt, hoursLeft, preferredLang);
+    await this.send(to, content.subject, content.html);
   }
 
   private async send(to: string, subject: string, html: string) {

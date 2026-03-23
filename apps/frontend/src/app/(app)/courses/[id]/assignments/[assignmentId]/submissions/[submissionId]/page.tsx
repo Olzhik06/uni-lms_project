@@ -1,9 +1,9 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { Submission, SubmissionAttachment, Grade } from '@/lib/types';
+import type { Submission, SubmissionAttachment, Grade, AiReviewResult } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea, Label, Skeleton } from '@/components/ui/form-elements';
@@ -15,10 +15,12 @@ import {
   FileText, File as FileIcon, Image as ImageIcon, Archive,
   ExternalLink, Code2, AlignLeft, Paperclip, Download, Eye, EyeOff,
   Send, Globe, MessageSquare, ChevronDown, Users, BarChart2,
-  Loader2, CalendarClock,
+  Loader2, CalendarClock, Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMe } from '@/hooks/use-auth';
+import { AiReviewPanel } from '@/components/ai-review-panel';
+import { useT } from '@/lib/i18n';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -86,6 +88,7 @@ function fmtDt(iso: string): string {
 
 function AttachmentItem({ att }: { att: SubmissionAttachment }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
   const FileIco = getFileIcon(att.mimeType);
   const isImage = att.mimeType.startsWith('image/');
   const isPdf = att.mimeType === 'application/pdf';
@@ -107,12 +110,12 @@ function AttachmentItem({ att }: { att: SubmissionAttachment }) {
           {canPreview && (
             <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => setOpen(v => !v)}>
               {open ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-              {open ? 'Hide' : 'Preview'}
+              {open ? t.courseGrades.hideFile : t.courseGrades.previewFile}
             </Button>
           )}
           <a href={att.fileUrl} download={att.fileName} target="_blank" rel="noopener noreferrer">
             <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs">
-              <Download className="h-3 w-3" /> Download
+              <Download className="h-3 w-3" /> {t.courseGrades.download}
             </Button>
           </a>
         </div>
@@ -154,10 +157,18 @@ function AttachmentItem({ att }: { att: SubmissionAttachment }) {
 
 // ─── GradePanel ───────────────────────────────────────────────────────────────
 
-function GradePanel({ sub }: { sub: SubmissionDetail }) {
+function GradePanel({
+  sub,
+  feedback,
+  onFeedbackChange,
+}: {
+  sub: SubmissionDetail;
+  feedback: string;
+  onFeedbackChange: (v: string) => void;
+}) {
   const qc = useQueryClient();
+  const t = useT();
   const [score, setScore] = useState(sub.grade?.score?.toString() ?? '');
-  const [feedback, setFeedback] = useState(sub.grade?.feedback ?? '');
 
   const maxScore = sub.assignment.maxScore;
   const numScore = parseFloat(score);
@@ -179,10 +190,10 @@ function GradePanel({ sub }: { sub: SubmissionDetail }) {
       api.post(`/submissions/${sub.id}/grade`, d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sub-review', sub.id] });
-      toast({ title: sub.grade ? 'Grade updated' : 'Grade published' });
+      toast({ title: sub.grade ? t.courseGrades.gradeUpdated : t.courseGrades.gradePublished });
     },
     onError: (e: any) =>
-      toast({ title: 'Failed to save grade', description: e.message, variant: 'destructive' }),
+      toast({ title: t.courseGrades.failedSaveGrade, description: e.message, variant: 'destructive' }),
   });
 
   const circR = 26;
@@ -218,7 +229,7 @@ function GradePanel({ sub }: { sub: SubmissionDetail }) {
         </div>
 
         <div className="flex-1">
-          <Label className="text-xs mb-1.5 block">Score</Label>
+          <Label className="text-xs mb-1.5 block">{t.courseGrades.score}</Label>
           <div className="flex items-center gap-2">
             <Input
               type="number"
@@ -234,12 +245,12 @@ function GradePanel({ sub }: { sub: SubmissionDetail }) {
             />
             <div className="text-center shrink-0">
               <p className="text-lg font-semibold text-muted-foreground leading-tight">/{maxScore}</p>
-              <p className="text-[10px] text-muted-foreground">pts</p>
+              <p className="text-[10px] text-muted-foreground">{t.courseGrades.pointsShort}</p>
             </div>
           </div>
           {score !== '' && !isValid && (
             <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1">
-              Must be 0–{maxScore}
+              {t.courseGrades.scoreMustBe}{maxScore}
             </p>
           )}
         </div>
@@ -247,14 +258,12 @@ function GradePanel({ sub }: { sub: SubmissionDetail }) {
 
       {/* Feedback */}
       <div className="space-y-1.5">
-        <Label className="text-xs">
-          Feedback <span className="font-normal text-muted-foreground">(optional)</span>
-        </Label>
+        <Label className="text-xs">{t.courseGrades.feedbackOptional}</Label>
         <Textarea
           value={feedback}
-          onChange={e => setFeedback(e.target.value)}
+          onChange={e => onFeedbackChange(e.target.value)}
           rows={5}
-          placeholder="Provide constructive feedback to help the student improve…"
+          placeholder={t.courseGrades.longFeedbackPlaceholder}
           className="resize-none text-sm"
         />
         <p className="text-right text-[11px] text-muted-foreground">{feedback.length} chars</p>
@@ -267,11 +276,11 @@ function GradePanel({ sub }: { sub: SubmissionDetail }) {
         onClick={() => gradeMut.mutate({ score: numScore, feedback: feedback || undefined })}
       >
         {gradeMut.isPending ? (
-          <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
+          <><Loader2 className="h-4 w-4 animate-spin" /> {t.courseGrades.saving}</>
         ) : sub.grade ? (
-          <><Award className="h-4 w-4" /> Update Grade</>
+          <><Award className="h-4 w-4" /> {t.courseGrades.updateGrade}</>
         ) : (
-          <><Send className="h-4 w-4" /> Publish Grade</>
+          <><Send className="h-4 w-4" /> {t.courseGrades.publishGrade}</>
         )}
       </Button>
 
@@ -279,13 +288,13 @@ function GradePanel({ sub }: { sub: SubmissionDetail }) {
       {sub.grade && (
         <div className="rounded-lg bg-muted/40 dark:bg-white/[0.03] border border-border/40 dark:border-white/[0.05] p-3 space-y-1.5">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-            Current grade
+            {t.courseGrades.currentGrade}
           </p>
           <div className="flex items-center justify-between">
             <span className={cn('text-2xl font-bold', pctColor)}>{sub.grade.score}</span>
             <div className="text-right">
               <p className="text-xs text-muted-foreground">
-                {sub.grade.gradedBy?.fullName ?? 'Teacher'}
+                {sub.grade.gradedBy?.fullName ?? t.adminCrud.userRoleTeacher}
               </p>
               <p className="text-[11px] text-muted-foreground/60">
                 {fmtDt(sub.grade.gradedAt)}
@@ -310,14 +319,45 @@ export default function SubmissionReviewPage() {
     id: string; assignmentId: string; submissionId: string;
   }>();
   const router = useRouter();
+  const t = useT();
   const { data: me } = useMe();
 
   const [contentTab, setContentTab] = useState<'text' | 'files' | 'link'>('text');
+
+  // ── Lifted feedback state (shared between GradePanel and AI insert) ──────
+  const [gradeFeedback, setGradeFeedback] = useState('');
+  const feedbackInitialized = useRef(false);
+
+  // ── AI review state ───────────────────────────────────────────────────────
+  const [aiState, setAiState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [aiResult, setAiResult] = useState<AiReviewResult | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const { data: sub, isLoading } = useQuery<SubmissionDetail>({
     queryKey: ['sub-review', submissionId],
     queryFn: () => api.get(`/submissions/${submissionId}`),
   });
+
+  // Initialize feedback from existing grade once sub loads
+  useEffect(() => {
+    if (sub && !feedbackInitialized.current) {
+      setGradeFeedback(sub.grade?.feedback ?? '');
+      feedbackInitialized.current = true;
+    }
+  }, [sub]);
+
+  const handleAiReview = async () => {
+    setAiState('loading');
+    setAiError(null);
+    try {
+      const result = await api.post<AiReviewResult>('/ai/review-submission', { submissionId });
+      setAiResult(result);
+      setAiState('ready');
+    } catch (e: any) {
+      setAiError(e.message || 'AI review failed. Please try again.');
+      setAiState('error');
+    }
+  };
 
   const hasText = !!(sub?.contentText);
   const hasFiles = (sub?.attachments?.length ?? 0) > 0;
@@ -327,12 +367,12 @@ export default function SubmissionReviewPage() {
 
   const tabs = useMemo(() => {
     if (!sub) return [];
-    const t: Array<{ key: 'text' | 'files' | 'link'; label: string; icon: React.ElementType; count?: number }> = [];
-    if (hasText) t.push({ key: 'text', label: isCode ? 'Code' : 'Text', icon: isCode ? Code2 : AlignLeft });
-    if (hasFiles) t.push({ key: 'files', label: 'Files', icon: Paperclip, count: sub.attachments.length });
-    if (hasLink) t.push({ key: 'link', label: 'Link', icon: ExternalLink });
-    return t;
-  }, [sub, hasText, hasFiles, hasLink, isCode]);
+    const arr: Array<{ key: 'text' | 'files' | 'link'; label: string; icon: React.ElementType; count?: number }> = [];
+    if (hasText) arr.push({ key: 'text', label: isCode ? t.courseAssignments.tabCode : t.courseAssignments.tabText, icon: isCode ? Code2 : AlignLeft });
+    if (hasFiles) arr.push({ key: 'files', label: t.courseAssignments.tabFiles, icon: Paperclip, count: sub.attachments.length });
+    if (hasLink) arr.push({ key: 'link', label: t.courseAssignments.tabLink, icon: ExternalLink });
+    return arr;
+  }, [sub, hasText, hasFiles, hasLink, isCode, t]);
 
   const activeTab = tabs.find(t => t.key === contentTab) ? contentTab : (tabs[0]?.key ?? 'text');
 
@@ -373,7 +413,7 @@ export default function SubmissionReviewPage() {
           className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Assignments
+          {t.courseGrades.assignmentsBreadcrumb}
         </button>
         <span className="text-muted-foreground/40">/</span>
         <span className="text-muted-foreground truncate max-w-[160px]">{sub.assignment.title}</span>
@@ -409,21 +449,21 @@ export default function SubmissionReviewPage() {
           <div className="flex items-center gap-2 flex-wrap shrink-0">
             {isLate && (
               <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/[0.12] dark:text-rose-300 dark:border-rose-500/30">
-                <AlertTriangle className="h-3 w-3" /> Late
+                <AlertTriangle className="h-3 w-3" /> {t.courseAssignments.late}
               </span>
             )}
             {sub.grade ? (
               <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/[0.12] dark:text-amber-300 dark:border-amber-500/30">
                 <Award className="h-3 w-3" />
-                Graded · {sub.grade.score}/{sub.assignment.maxScore}
+                {t.courseGrades.statusGraded} · {sub.grade.score}/{sub.assignment.maxScore}
               </span>
             ) : sub.status === 'SUBMITTED' ? (
               <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/[0.12] dark:text-blue-300 dark:border-blue-500/30">
-                <CheckCircle2 className="h-3 w-3" /> Submitted
+                <CheckCircle2 className="h-3 w-3" /> {t.courseGrades.statusSubmitted}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border text-muted-foreground bg-muted/50 border-border">
-                Draft
+                {t.courseGrades.statusDraft}
               </span>
             )}
           </div>
@@ -442,12 +482,12 @@ export default function SubmissionReviewPage() {
           </div>
           {sub.submittedAt ? (
             <div className="text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Submitted</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t.courseGrades.submittedTimeLabel}</p>
               <p className="text-xs text-foreground mt-0.5">{fmtDt(sub.submittedAt)}</p>
             </div>
           ) : (
             <div className="text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Not submitted</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t.courseGrades.notSubmittedLabel}</p>
             </div>
           )}
         </div>
@@ -463,9 +503,9 @@ export default function SubmissionReviewPage() {
               <div className="h-12 w-12 rounded-xl bg-muted dark:bg-white/[0.04] flex items-center justify-center mx-auto mb-3">
                 <AlignLeft className="h-6 w-6 text-muted-foreground/30" />
               </div>
-              <p className="text-sm font-medium text-foreground mb-1">No content submitted</p>
+              <p className="text-sm font-medium text-foreground mb-1">{t.courseGrades.noContent}</p>
               <p className="text-xs text-muted-foreground">
-                The student submitted without attaching any text, files, or links.
+                {t.courseGrades.noContentDesc}
               </p>
             </div>
           ) : (
@@ -506,7 +546,7 @@ export default function SubmissionReviewPage() {
                     <div>
                       <div className="flex items-center gap-2 mb-3">
                         <Code2 className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-xs font-medium text-muted-foreground">Code Submission</span>
+                        <span className="text-xs font-medium text-muted-foreground">{t.courseGrades.codeSubmission}</span>
                         <span className="ml-auto font-mono text-[10px] text-muted-foreground/60 bg-muted/40 dark:bg-white/[0.04] px-2 py-0.5 rounded">
                           {sub.contentText!.length} chars
                         </span>
@@ -532,7 +572,7 @@ export default function SubmissionReviewPage() {
                     <div>
                       <div className="flex items-center gap-2 mb-3">
                         <AlignLeft className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-xs font-medium text-muted-foreground">Text Answer</span>
+                        <span className="text-xs font-medium text-muted-foreground">{t.courseGrades.textAnswer}</span>
                         <span className="ml-auto text-[10px] text-muted-foreground/60">
                           {sub.contentText!.split(/\s+/).filter(Boolean).length} words
                         </span>
@@ -552,7 +592,7 @@ export default function SubmissionReviewPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <Paperclip className="h-4 w-4 text-muted-foreground" />
                       <span className="text-xs font-medium text-muted-foreground">
-                        {sub.attachments.length} file{sub.attachments.length !== 1 ? 's' : ''} attached
+                        {sub.attachments.length} {t.courseAssignments.tabFiles.toLowerCase()}
                       </span>
                     </div>
                     {sub.attachments.map(a => (
@@ -566,7 +606,7 @@ export default function SubmissionReviewPage() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 mb-1">
                       <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground">Submitted Link</span>
+                      <span className="text-xs font-medium text-muted-foreground">{t.courseGrades.submittedLink}</span>
                     </div>
 
                     <div className="rounded-xl border border-border/50 dark:border-white/[0.07] overflow-hidden">
@@ -589,7 +629,7 @@ export default function SubmissionReviewPage() {
                         </div>
                         <a href={sub.contentUrl!} target="_blank" rel="noopener noreferrer" className="shrink-0">
                           <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs">
-                            <ExternalLink className="h-3.5 w-3.5" /> Open
+                            <ExternalLink className="h-3.5 w-3.5" /> {t.courseGrades.openLink}
                           </Button>
                         </a>
                       </div>
@@ -597,7 +637,7 @@ export default function SubmissionReviewPage() {
 
                     {hasText && (
                       <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-2">Notes from student</p>
+                        <p className="text-xs font-medium text-muted-foreground mb-2">{t.courseGrades.notesFromStudent}</p>
                         <div className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap p-4 rounded-lg bg-muted/20 dark:bg-white/[0.02] border border-border/40 dark:border-white/[0.04]">
                           {sub.contentText}
                         </div>
@@ -617,12 +657,12 @@ export default function SubmissionReviewPage() {
                   <FileText className="h-5 w-5 text-primary/70" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Uploaded file</p>
+                  <p className="text-sm font-medium">{t.courseGrades.uploadedFile}</p>
                   <p className="text-xs text-muted-foreground truncate">{sub.fileUrl}</p>
                 </div>
                 <a href={sub.fileUrl} target="_blank" rel="noopener noreferrer">
                   <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs">
-                    <Download className="h-3.5 w-3.5" /> Download
+                    <Download className="h-3.5 w-3.5" /> {t.courseGrades.download}
                   </Button>
                 </a>
               </div>
@@ -633,31 +673,50 @@ export default function SubmissionReviewPage() {
         {/* ── RIGHT: Grade panel ── */}
         <div className="lg:sticky lg:top-6 space-y-4">
           <div className="rounded-xl border border-border/60 dark:border-white/[0.07] bg-card dark:bg-card/80 dark:backdrop-blur-sm shadow-card p-5">
-            <h2 className="font-semibold text-sm mb-4 flex items-center gap-2">
-              <Award className="h-4 w-4 text-amber-500" />
-              Grade Submission
-            </h2>
-            <GradePanel sub={sub} />
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-sm flex items-center gap-2">
+                <Award className="h-4 w-4 text-amber-500" />
+                {t.courseGrades.gradeSubmission}
+              </h2>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'h-7 gap-1.5 text-xs shrink-0',
+                  aiState === 'ready'
+                    ? 'border-violet-300 text-violet-700 dark:border-violet-500/40 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-500/10'
+                    : 'hover:border-violet-300 hover:text-violet-700 dark:hover:border-violet-500/40 dark:hover:text-violet-300',
+                )}
+                onClick={handleAiReview}
+                disabled={aiState === 'loading'}
+              >
+                {aiState === 'loading'
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <Sparkles className="h-3 w-3" />}
+                {aiState === 'loading' ? t.courseGrades.aiAnalyzing : aiState === 'ready' ? t.courseGrades.aiRegenerate : t.courseGrades.aiReview}
+              </Button>
+            </div>
+            <GradePanel sub={sub} feedback={gradeFeedback} onFeedbackChange={setGradeFeedback} />
           </div>
 
           {/* Quick stats */}
           <div className="rounded-xl border border-border/60 dark:border-white/[0.07] bg-card dark:bg-card/80 p-4 space-y-2.5">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Submission Info
+              {t.courseGrades.submissionInfo}
             </p>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Status</span>
+                <span className="text-muted-foreground">{t.courseGrades.statusLabel}</span>
                 <span className="font-medium">
-                  {sub.grade ? 'Graded' : sub.status === 'SUBMITTED' ? 'Submitted' : 'Draft'}
+                  {sub.grade ? t.courseGrades.statusGraded : sub.status === 'SUBMITTED' ? t.courseGrades.statusSubmitted : t.courseGrades.statusDraft}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Content types</span>
+                <span className="text-muted-foreground">{t.courseGrades.contentTypes}</span>
                 <span className="font-medium flex items-center gap-1">
-                  {hasText && <span title={isCode ? 'Code' : 'Text'}>{isCode ? '⌨' : '📝'}</span>}
-                  {hasFiles && <span title="Files">📎</span>}
-                  {hasLink && <span title="Link">🔗</span>}
+                  {hasText && <span title={isCode ? t.courseAssignments.tabCode : t.courseAssignments.tabText}>{isCode ? '⌨' : '📝'}</span>}
+                  {hasFiles && <span title={t.courseAssignments.tabFiles}>📎</span>}
+                  {hasLink && <span title={t.courseAssignments.tabLink}>🔗</span>}
                   {!hasText && !hasFiles && !hasLink && '—'}
                 </span>
               </div>
@@ -670,7 +729,7 @@ export default function SubmissionReviewPage() {
               {hasText && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">
-                    {isCode ? 'Code length' : 'Word count'}
+                    {isCode ? t.courseGrades.codeLength : t.courseGrades.wordCount}
                   </span>
                   <span className="font-medium">
                     {isCode
@@ -681,14 +740,89 @@ export default function SubmissionReviewPage() {
               )}
               {isLate && (
                 <div className="flex justify-between text-rose-600 dark:text-rose-400">
-                  <span>Submitted</span>
-                  <span className="font-medium">Late</span>
+                  <span>{t.courseGrades.submittedTimeLabel}</span>
+                  <span className="font-medium">{t.courseAssignments.late}</span>
                 </div>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* ── AI Review Panel ── */}
+      <AnimatePresence>
+        {aiState === 'loading' && (
+          <motion.div
+            key="ai-skeleton"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="rounded-2xl border border-violet-200/60 dark:border-violet-500/15 bg-gradient-to-b from-violet-50/60 to-indigo-50/40 dark:from-violet-950/15 dark:to-indigo-950/10 p-5 space-y-4"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center animate-pulse">
+                <Sparkles className="h-3.5 w-3.5 text-white/80" />
+              </div>
+              <div className="space-y-1.5 flex-1">
+                <div className="h-3 w-32 rounded bg-violet-200/60 dark:bg-violet-500/20 animate-pulse" />
+                <div className="h-2.5 w-48 rounded bg-violet-100/60 dark:bg-violet-500/10 animate-pulse" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              {[80, 65, 90, 55, 75].map((w, i) => (
+                <div key={i} className="h-3 rounded bg-violet-100/70 dark:bg-violet-500/10 animate-pulse" style={{ width: `${w}%` }} />
+              ))}
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="h-24 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-500/10 animate-pulse" />
+              <div className="h-24 rounded-xl bg-rose-50/60 dark:bg-rose-950/10 border border-rose-100 dark:border-rose-500/10 animate-pulse" />
+            </div>
+            <div className="h-28 rounded-xl bg-violet-100/50 dark:bg-violet-500/10 animate-pulse" />
+            <p className="text-xs text-violet-600/70 dark:text-violet-400/50 text-center animate-pulse">
+              {t.courseGrades.analyzingAi}
+            </p>
+          </motion.div>
+        )}
+
+        {aiState === 'error' && (
+          <motion.div
+            key="ai-error"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="rounded-xl border border-rose-200/60 dark:border-rose-500/20 bg-rose-50/60 dark:bg-rose-950/15 p-4 flex items-center gap-3"
+          >
+            <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-rose-700 dark:text-rose-300">{t.courseGrades.aiReviewFailed}</p>
+              <p className="text-xs text-rose-600/80 dark:text-rose-400/70 mt-0.5">{aiError}</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs border-rose-200 dark:border-rose-500/30 hover:bg-rose-50 dark:hover:bg-rose-500/10 shrink-0"
+              onClick={handleAiReview}
+            >
+              {t.courseGrades.aiRetry}
+            </Button>
+          </motion.div>
+        )}
+
+        {aiState === 'ready' && aiResult && (
+          <AiReviewPanel
+            key="ai-panel"
+            result={aiResult}
+            maxScore={sub.assignment.maxScore}
+            onInsertFeedback={text => {
+              setGradeFeedback(text);
+              toast({ title: t.courseGrades.feedbackInserted, description: t.courseGrades.feedbackInsertedDesc });
+            }}
+            onRegenerate={handleAiReview}
+            isRegenerating={false}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
